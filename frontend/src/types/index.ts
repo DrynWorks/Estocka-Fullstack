@@ -1,0 +1,48 @@
+export interface User {
+    id: number;
+    email: string;
+    full_name: string;
+    role: {
+        id: number;
+        name: string;
+    };
+}
+
+export interface LoginCredentials {
+    username: string;
+    password: string;
+}
+
+export interface Product {
+    id: number;
+    name: string;
+    sku: string;
+    price: number;
+    cost_price: number;
+    quantity: number;
+    alert_level: number;
+    lead_time: number;
+    category: {
+        id: number;
+        name: string;
+        description?: string;
+    };
+}
+
+export interface Movement {
+    id: number;
+    product_id: number;
+    type: 'entrada' | 'saida';
+    quantity: number;
+    reason?: string;
+    note?: string;
+    created_at: string;
+    product: Product;
+    created_by?: User;
+}
+
+export interface Category {
+    id: number;
+    name: string;
+    description?: string;
+}

@@ -1,0 +1,43 @@
+[project]
+name = "programacaiii_api"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Murilo",email = "murilo.assis@ifg.edu.br.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi (>=0.116.1,<0.117.0)",
+    "uvicorn (>=0.35.0,<0.36.0)",
+    "email-validator (>=2.3.0,<3.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+
+[tool.poetry]
+name = "programacaiii_api"
+version = "0.1.0"
+description = "API para a disciplina de Programação III"
+authors = ["Murilo <murilo.assis@ifg.edu.br.com>"]
+packages = [
+    { include = "main.py" }
+]
+
+[tool.poetry.dependencies]
+python = ">=3.11"
+sqlalchemy = "^2.0.43"
+psycopg2-binary = "^2.9.10"
+fastapi = "^0.116.2"
+uvicorn = "^0.35.0"
+email-validator = "^2.3.0"
+pydantic-settings = "^2.6.1"
+python-jose = "^3.5.0"
+python-multipart = "^0.0.20"
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+bcrypt = "^4.0.1"
+pillow = "^11.3.0"
