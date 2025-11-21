@@ -13,7 +13,7 @@ class Settings(BaseSettings):
 
     secret_key: str = Field(..., alias="SECRET_KEY")
     database_url: str = Field(default="sqlite:///./estocka_dev.db", alias="DATABASE_URL")
-    seed_on_start: bool = Field(default=False, alias="SEED_ON_START")
+    seed_on_start: bool = Field(default=True, alias="SEED_ON_START")
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
