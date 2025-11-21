@@ -29,7 +29,7 @@ const navigation = [
     { name: 'Usuários', href: '/users', icon: Users, adminOnly: true },
 ];
 
-export default function Layout() {
+export default function Layout({ children }: { children?: React.ReactNode }) {
     const { user, logout } = useAuth();
     const location = useLocation();
     const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -63,14 +63,14 @@ export default function Layout() {
                     <ul className="space-y-2">
                         {navigation.map((item) => {
                             if (item.adminOnly && !isAdmin) return null;
-                            const isActive = location.pathname === item.href;
+                            const isActive = location.pathname === item.href || (item.href === '/dashboard' && location.pathname === '/');
                             return (
                                 <li key={item.name}>
                                     <Link
                                         to={item.href}
                                         className={`flex items-center p-3 rounded-lg transition-colors ${isActive
-                                                ? 'bg-blue-600 text-white'
-                                                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                                            ? 'bg-blue-600 text-white'
+                                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                                             }`}
                                     >
                                         <item.icon className="w-5 h-5 mr-3" />
@@ -128,7 +128,7 @@ export default function Layout() {
 
                 {/* Page Content */}
                 <main className="p-6">
-                    <Outlet />
+                    {children || <Outlet />}
                 </main>
             </div>
         </div>

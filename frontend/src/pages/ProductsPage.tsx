@@ -31,6 +31,7 @@ import { productService } from '@/services/productService';
 import { categoryService } from '@/services/categoryService';
 import type { Product, Category } from '@/types';
 import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function ProductsPage() {
     const [products, setProducts] = useState<Product[]>([]);
@@ -96,8 +97,10 @@ export default function ProductsPage() {
             await loadData();
             setDialogOpen(false);
             resetForm();
+            toast.success(editingProduct ? 'Produto atualizado com sucesso!' : 'Produto criado com sucesso!');
         } catch (error) {
             console.error('Erro ao salvar produto:', error);
+            toast.error('Erro ao salvar produto');
         }
     };
 
@@ -106,8 +109,10 @@ export default function ProductsPage() {
         try {
             await productService.delete(id);
             await loadData();
+            toast.success('Produto excluído com sucesso!');
         } catch (error) {
             console.error('Erro ao deletar produto:', error);
+            toast.error('Erro ao excluir produto');
         }
     };
 
