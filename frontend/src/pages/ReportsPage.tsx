@@ -92,9 +92,11 @@ export default function ReportsPage() {
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight text-slate-900">Relatórios Analíticos</h1>
-                <p className="text-slate-500 mt-2">Análises avançadas para gestão estratégica de estoque</p>
+            <div className="mb-8">
+                <h1 className="text-3xl font-bold tracking-tight dark:text-slate-100">Relatórios Analíticos</h1>
+                <p className="text-muted-foreground mt-1 dark:text-slate-400">
+                    Análises avançadas para gestão estratégica de estoque
+                </p>
             </div>
 
             {/* Financial Summary Cards */}
@@ -108,7 +110,7 @@ export default function ReportsPage() {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-slate-900">
+                            <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                                 R$ {financialData.total_inventory_value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </div>
                         </CardContent>
@@ -121,7 +123,7 @@ export default function ReportsPage() {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-slate-900">
+                            <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                                 R$ {financialData.total_cost_value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </div>
                         </CardContent>
@@ -134,7 +136,7 @@ export default function ReportsPage() {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-slate-900">
+                            <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                                 R$ {financialData.potential_profit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </div>
                         </CardContent>
@@ -147,7 +149,7 @@ export default function ReportsPage() {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-slate-900">{financialData.average_margin.toFixed(2)}%</div>
+                            <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{financialData.average_margin.toFixed(2)}%</div>
                         </CardContent>
                     </Card>
                 </div>
@@ -155,11 +157,11 @@ export default function ReportsPage() {
 
             {/* Tabs for different reports */}
             <Tabs defaultValue="abc" className="space-y-6">
-                <TabsList className="bg-slate-100 p-1 rounded-lg">
-                    <TabsTrigger value="abc" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">Curva ABC</TabsTrigger>
-                    <TabsTrigger value="xyz" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">Análise XYZ</TabsTrigger>
-                    <TabsTrigger value="turnover" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">Giro de Estoque</TabsTrigger>
-                    <TabsTrigger value="forecast" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">Previsão</TabsTrigger>
+                <TabsList className="bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+                    <TabsTrigger value="abc" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm">Curva ABC</TabsTrigger>
+                    <TabsTrigger value="xyz" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm">Análise XYZ</TabsTrigger>
+                    <TabsTrigger value="turnover" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm">Giro de Estoque</TabsTrigger>
+                    <TabsTrigger value="forecast" className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm">Previsão</TabsTrigger>
                 </TabsList>
 
                 {/* ABC Analysis */}
@@ -305,17 +307,15 @@ export default function ReportsPage() {
                                     {turnoverData.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={4} className="text-center text-slate-500 py-8">
-                                                Sem dados de movimentação
+                                                Sem dados suficientes para análise de giro
                                             </TableCell>
                                         </TableRow>
                                     ) : (
                                         turnoverData.map((item) => (
                                             <TableRow key={item.product_id}>
                                                 <TableCell className="font-medium">{item.product_name}</TableCell>
-                                                <TableCell className="text-right font-bold">
-                                                    {item.turnover_rate.toFixed(2)}x
-                                                </TableCell>
-                                                <TableCell className="text-right">{item.avg_inventory.toFixed(0)}</TableCell>
+                                                <TableCell className="text-right">{item.turnover_rate.toFixed(2)}x</TableCell>
+                                                <TableCell className="text-right">{item.avg_inventory.toFixed(1)}</TableCell>
                                                 <TableCell className="text-right">{item.total_sales}</TableCell>
                                             </TableRow>
                                         ))
@@ -330,9 +330,9 @@ export default function ReportsPage() {
                 <TabsContent value="forecast">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Previsão e Ponto de Pedido</CardTitle>
+                            <CardTitle>Previsão de Estoque</CardTitle>
                             <CardDescription>
-                                Análise de risco de ruptura e pontos ideais de reposição
+                                Análise de risco de ruptura e ponto de pedido
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -340,17 +340,17 @@ export default function ReportsPage() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Produto</TableHead>
-                                        <TableHead className="text-right">Uso Diário</TableHead>
-                                        <TableHead className="text-right">Dias p/ Ruptura</TableHead>
+                                        <TableHead className="text-right">Consumo Diário</TableHead>
+                                        <TableHead className="text-right">Dias Restantes</TableHead>
                                         <TableHead className="text-right">Ponto de Pedido</TableHead>
-                                        <TableHead>Status</TableHead>
+                                        <TableHead className="text-center">Status</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {forecastData.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={5} className="text-center text-slate-500 py-8">
-                                                Sem dados de previsão
+                                                Sem dados suficientes para previsão
                                             </TableCell>
                                         </TableRow>
                                     ) : (
@@ -359,10 +359,10 @@ export default function ReportsPage() {
                                                 <TableCell className="font-medium">{item.product_name}</TableCell>
                                                 <TableCell className="text-right">{item.daily_usage.toFixed(2)}</TableCell>
                                                 <TableCell className="text-right">
-                                                    {item.days_until_stockout === 999 ? '∞' : item.days_until_stockout.toFixed(0)}
+                                                    {item.days_until_stockout > 365 ? '> 1 ano' : item.days_until_stockout.toFixed(0) + ' dias'}
                                                 </TableCell>
-                                                <TableCell className="text-right font-medium">{item.reorder_point}</TableCell>
-                                                <TableCell>{getStatusBadge(item.status)}</TableCell>
+                                                <TableCell className="text-right">{item.reorder_point}</TableCell>
+                                                <TableCell className="text-center">{getStatusBadge(item.status)}</TableCell>
                                             </TableRow>
                                         ))
                                     )}
