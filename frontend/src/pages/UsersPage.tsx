@@ -48,6 +48,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { UserPlus, Pencil, Trash2, Users, Search, Download, FileText, FileSpreadsheet } from 'lucide-react';
+import { EmptyState } from '@/components/EmptyState';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
@@ -285,8 +286,25 @@ export default function UsersPage() {
                         <TableBody>
                             {filteredUsers.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="text-center text-slate-500 py-8">
-                                        Nenhum usuário encontrado
+                                    <TableCell colSpan={4} className="p-0">
+                                        {users.length === 0 ? (
+                                            <EmptyState
+                                                icon={Users}
+                                                title="Nenhum usuário cadastrado"
+                                                description="Adicione usuários para gerenciar acessos"
+                                                action={{
+                                                    label: "Adicionar Usuário",
+                                                    onClick: () => handleOpenDialog()
+                                                }}
+                                            />
+                                        ) : (
+                                            <EmptyState
+                                                icon={Search}
+                                                title="Nenhum usuário encontrado"
+                                                description="Tente outro termo de busca ou função"
+                                                variant="search"
+                                            />
+                                        )}
                                     </TableCell>
                                 </TableRow>
                             ) : (

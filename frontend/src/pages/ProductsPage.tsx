@@ -50,6 +50,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { Product, Category } from '@/types';
 import { Plus, Search, Pencil, Trash2, AlertTriangle, Package, Download, FileText, FileSpreadsheet } from 'lucide-react';
+import { EmptyState } from '@/components/EmptyState';
 import { toast } from 'sonner';
 
 export default function ProductsPage() {
@@ -304,8 +305,25 @@ export default function ProductsPage() {
                         <TableBody>
                             {filteredProducts.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="text-center text-slate-500">
-                                        Nenhum produto encontrado
+                                    <TableCell colSpan={7} className="p-0">
+                                        {products.length === 0 ? (
+                                            <EmptyState
+                                                icon={Package}
+                                                title="Nenhum produto cadastrado"
+                                                description="Comece adicionando seu primeiro produto ao estoque"
+                                                action={{
+                                                    label: "Novo Produto",
+                                                    onClick: () => openDialog()
+                                                }}
+                                            />
+                                        ) : (
+                                            <EmptyState
+                                                icon={Search}
+                                                title="Nenhum produto encontrado"
+                                                description="Tente ajustar os filtros ou termo de busca"
+                                                variant="search"
+                                            />
+                                        )}
                                     </TableCell>
                                 </TableRow>
                             ) : (

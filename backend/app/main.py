@@ -123,7 +123,7 @@ def ensure_default_roles(session: Session | None = None) -> None:
 
 
 def seed_initial_data() -> None:
-    """Populate the database with default data when starting the application."""
+    """Create default roles and admin user on startup (if enabled)."""
     with SessionLocal() as session:
         with session.begin():
             ensure_default_roles(session=session)
@@ -131,7 +131,7 @@ def seed_initial_data() -> None:
             admin_role = _get_role_by_name(session, "admin")
             user_role = _get_role_by_name(session, "user")
 
-            admin_user, _ = _ensure_special_user(
+            _ensure_special_user(
                 session,
                 email="admin@estoque.com",
                 password="1234",
@@ -146,17 +146,8 @@ def seed_initial_data() -> None:
                 full_name="Usuario Padrao",
                 role_id=user_role.id,
             )
-
-            category_map = _ensure_sample_categories(session)
-            zero_stock_product_ids = _ensure_sample_products(session, category_map)
-
-            if zero_stock_product_ids:
-                _register_initial_stock_movements(
-                    session,
-                    zero_stock_product_ids,
-                    created_by_user_id=admin_user.id,
-                    manage_transaction=False,
-                )
+            
+            # Note: Use 'python seed_database.py' to populate products and movements
 
 
 def _get_role_by_name(session: Session, role_name: str) -> Role:

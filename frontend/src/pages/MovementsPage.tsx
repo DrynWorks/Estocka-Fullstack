@@ -39,7 +39,8 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, ArrowDownCircle, ArrowUpCircle, Search, Download, FileText, FileSpreadsheet } from 'lucide-react';
+import { Plus, ArrowDownCircle, ArrowUpCircle, Search, Download, FileText, FileSpreadsheet, TrendingUp } from 'lucide-react';
+import { EmptyState } from '@/components/EmptyState';
 import { toast } from 'sonner';
 import {
     Pagination,
@@ -235,8 +236,25 @@ export default function MovementsPage() {
                         <TableBody>
                             {paginatedMovements.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center text-slate-500">
-                                        Nenhuma movimentação encontrada
+                                    <TableCell colSpan={6} className="p-0">
+                                        {movements.length === 0 ? (
+                                            <EmptyState
+                                                icon={TrendingUp}
+                                                title="Nenhuma movimentação registrada"
+                                                description="Registre entradas e saídas de estoque"
+                                                action={{
+                                                    label: "Nova Movimentação",
+                                                    onClick: () => setDialogOpen(true)
+                                                }}
+                                            />
+                                        ) : (
+                                            <EmptyState
+                                                icon={Search}
+                                                title="Nenhuma movimentação encontrada"
+                                                description="Ajuste os filtros de busca ou período"
+                                                variant="search"
+                                            />
+                                        )}
                                     </TableCell>
                                 </TableRow>
                             ) : (
