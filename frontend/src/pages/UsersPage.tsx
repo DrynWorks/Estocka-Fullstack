@@ -12,6 +12,16 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
     Table,
     TableBody,
     TableCell,
@@ -28,15 +38,28 @@ import {
 } from '@/components/ui/select';
 import { userService, type User, type UserCreate, type UserUpdate } from '@/services/userService';
 import { roleService, type Role } from '@/services/roleService';
-import { UserPlus, Pencil, Trash2, Users } from 'lucide-react';
+import { exportToPDF, exportToCSV } from '@/utils/export';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { UserPlus, Pencil, Trash2, Users, Search, Download, FileText, FileSpreadsheet } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
 export default function UsersPage() {
     const [users, setUsers] = useState<User[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [roleFilter, setRoleFilter] = useState<string>('all');
     const [loading, setLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [userToDelete, setUserToDelete] = useState<User | null>(null);
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [formData, setFormData] = useState<UserCreate>({
         email: '',
@@ -71,6 +94,14 @@ export default function UsersPage() {
             console.error('Erro ao carregar roles:', error);
         }
     };
+
+    const filteredUsers = users.filter((u) => {
+        const matchesSearch =
+            u.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            u.email.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesRole = roleFilter === 'all' || u.role.name === roleFilter;
+        return matchesSearch && matchesRole;
+    });
 
     const handleOpenDialog = (user?: User) => {
         if (user) {
@@ -114,23 +145,52 @@ export default function UsersPage() {
             }
             setDialogOpen(false);
             loadUsers();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Erro ao salvar usuário:', error);
-            toast.error('Erro ao salvar usuário');
+            const message = error?.response?.data?.detail || 'Erro ao salvar usuário';
+            toast.error(message);
         }
     };
 
-    const handleDelete = async (id: number) => {
-        if (!confirm('Tem certeza que deseja excluir este usuário?')) return;
+    const openDeleteDialog = (user: User) => {
+        setUserToDelete(user);
+        setDeleteDialogOpen(true);
+    };
 
+    const confirmDelete = async () => {
+        if (!userToDelete) return;
         try {
-            await userService.deleteUser(id);
-            toast.success('Usuário excluído com sucesso!');
+            await userService.deleteUser(userToDelete.id);
+            toast.success(`Usuário "${userToDelete.full_name}" excluído com sucesso!`);
+            setDeleteDialogOpen(false);
+            setUserToDelete(null);
             loadUsers();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Erro ao deletar usuário:', error);
-            toast.error('Erro ao excluir usuário');
+            const message = error?.response?.data?.detail || 'Erro ao excluir usuário';
+            toast.error(message);
         }
+    };
+
+    const handleExportPDF = () => {
+        const headers = ['Nome', 'Email', 'Função'];
+        const data = filteredUsers.map(u => [
+            u.full_name,
+            u.email,
+            u.role.name === 'admin' ? 'Administrador' : 'Usuário'
+        ]);
+        exportToPDF('Relatório de Usuários', headers, data, 'usuarios');
+        toast.success('Relatório PDF exportado com sucesso!');
+    };
+
+    const handleExportCSV = () => {
+        const data = filteredUsers.map(u => ({
+            'Nome': u.full_name,
+            'Email': u.email,
+            'Função': u.role.name === 'admin' ? 'Administrador' : 'Usuário'
+        }));
+        exportToCSV(data, 'usuarios');
+        toast.success('Relatório CSV exportado com sucesso!');
     };
 
     if (loading) {
@@ -146,27 +206,71 @@ export default function UsersPage() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Gerenciamento de Usuários</h1>
-                    <p className="text-muted-foreground mt-1">
+                    <h1 className="text-3xl font-bold tracking-tight dark:text-slate-100">Gerenciamento de Usuários</h1>
+                    <p className="text-muted-foreground dark:text-slate-400 mt-1">
                         Gerencie usuários e permissões do sistema
                     </p>
                 </div>
-                <Button onClick={() => handleOpenDialog()} className="gap-2">
-                    <UserPlus className="w-4 h-4" />
-                    Novo Usuário
-                </Button>
-            </div>
+
+                <div className="flex gap-2">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="gap-2">
+                                <Download className="w-4 h-4" />
+                                Exportar
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Formato de Exportação</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={handleExportPDF} className="gap-2 cursor-pointer">
+                                <FileText className="w-4 h-4" />
+                                PDF (Relatório)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleExportCSV} className="gap-2 cursor-pointer">
+                                <FileSpreadsheet className="w-4 h-4" />
+                                CSV (Dados)
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <Button onClick={() => handleOpenDialog()} className="gap-2">
+                        <UserPlus className="w-4 h-4" />
+                        Novo Usuário
+                    </Button>
+                </div>
+            </div >
 
             {/* Users Table */}
-            <Card>
+            < Card >
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Users className="w-5 h-5" />
                         Usuários Cadastrados
                     </CardTitle>
                     <CardDescription>
-                        Total de {users.length} usuários no sistema
+                        Total de {filteredUsers.length} usuários encontrados
                     </CardDescription>
+                    <div className="flex items-center gap-4 mt-4">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <Input
+                                placeholder="Buscar por nome ou email..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-9"
+                            />
+                        </div>
+                        <Select value={roleFilter} onValueChange={setRoleFilter}>
+                            <SelectTrigger className="w-[200px]">
+                                <SelectValue placeholder="Função" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Todas as funções</SelectItem>
+                                <SelectItem value="admin">Administrador</SelectItem>
+                                <SelectItem value="user">Usuário</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -179,42 +283,50 @@ export default function UsersPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {users.map((user) => (
-                                <TableRow key={user.id}>
-                                    <TableCell className="font-medium">{user.full_name}</TableCell>
-                                    <TableCell>{user.email}</TableCell>
-                                    <TableCell>
-                                        <Badge variant={user.role.name === 'admin' ? 'default' : 'secondary'}>
-                                            {user.role.name === 'admin' ? 'Administrador' : 'Usuário'}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <div className="flex justify-end gap-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => handleOpenDialog(user)}
-                                            >
-                                                <Pencil className="w-4 h-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => handleDelete(user.id)}
-                                            >
-                                                <Trash2 className="w-4 h-4 text-red-500" />
-                                            </Button>
-                                        </div>
+                            {filteredUsers.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={4} className="text-center text-slate-500 py-8">
+                                        Nenhum usuário encontrado
                                     </TableCell>
                                 </TableRow>
-                            ))}
+                            ) : (
+                                filteredUsers.map((user) => (
+                                    <TableRow key={user.id}>
+                                        <TableCell className="font-medium">{user.full_name}</TableCell>
+                                        <TableCell>{user.email}</TableCell>
+                                        <TableCell>
+                                            <Badge variant={user.role.name === 'admin' ? 'default' : 'secondary'}>
+                                                {user.role.name === 'admin' ? 'Administrador' : 'Usuário'}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => handleOpenDialog(user)}
+                                                >
+                                                    <Pencil className="w-4 h-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => openDeleteDialog(user)}
+                                                >
+                                                    <Trash2 className="w-4 h-4 text-red-500" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
                         </TableBody>
                     </Table>
                 </CardContent>
-            </Card>
+            </Card >
 
             {/* Create/Edit Dialog */}
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            < Dialog open={dialogOpen} onOpenChange={setDialogOpen} >
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>
@@ -299,7 +411,31 @@ export default function UsersPage() {
                         </Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
-        </div>
+            </Dialog >
+
+            {/* Delete Confirmation Dialog */}
+            < AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen} >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Tem certeza que deseja excluir o usuário{' '}
+                            <span className="font-semibold">{userToDelete?.full_name}</span>?
+                            <br />
+                            Esta ação não pode ser desfeita.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={confirmDelete}
+                            className="bg-red-600 hover:bg-red-700"
+                        >
+                            Excluir
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog >
+        </div >
     );
 }

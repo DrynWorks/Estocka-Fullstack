@@ -89,8 +89,8 @@ export default function Dashboard() {
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight text-slate-900">Dashboard</h1>
-                <p className="text-slate-500 mt-2">Visão geral e métricas principais do seu estoque.</p>
+                <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Dashboard</h1>
+                <p className="text-slate-500 dark:text-slate-400 mt-2">Visão geral e métricas principais do seu estoque.</p>
             </div>
 
             {/* KPI Cards */}
@@ -98,7 +98,7 @@ export default function Dashboard() {
                 {stats.map((stat) => (
                     <Card key={stat.title} className="hover:shadow-md transition-shadow">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-slate-600">
+                            <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
                                 {stat.title}
                             </CardTitle>
                             <div className={`${stat.bgColor} p-2 rounded-full`}>
@@ -106,7 +106,7 @@ export default function Dashboard() {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-slate-900">{stat.value}</div>
+                            <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stat.value}</div>
                         </CardContent>
                     </Card>
                 ))}

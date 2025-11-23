@@ -95,26 +95,34 @@ def get_movement_history(
     )
 
 
-def get_abc_analysis(db: Session) -> report_model.ABCReport:
+def get_abc_analysis(
+    db: Session,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None
+) -> report_model.ABCReport:
     """
     Perform ABC Analysis based on consumption value (quantity consumed * price).
     A: Top 80% of value
     B: Next 15% of value
     C: Bottom 5% of value
     """
-    # Calculate total consumption value per product (last 90 days for relevance)
-    ninety_days_ago = datetime.utcnow() - timedelta(days=90)
+    # Default to last 90 days if not provided
+    if not start_date:
+        start_date = datetime.utcnow() - timedelta(days=90)
     
+    query = select(
+        Movement.product_id,
+        func.sum(Movement.quantity).label("total_qty")
+    ).where(
+        Movement.type == MovementType.SAIDA,
+        Movement.created_at >= start_date
+    )
+
+    if end_date:
+        query = query.where(Movement.created_at <= end_date)
+
     results = db.execute(
-        select(
-            Movement.product_id,
-            func.sum(Movement.quantity).label("total_qty")
-        )
-        .where(
-            Movement.type == MovementType.SAIDA,
-            Movement.created_at >= ninety_days_ago
-        )
-        .group_by(Movement.product_id)
+        query.group_by(Movement.product_id)
     ).all()
 
     product_consumption = {r.product_id: r.total_qty for r in results}
@@ -163,24 +171,30 @@ def get_abc_analysis(db: Session) -> report_model.ABCReport:
     return report_model.ABCReport(items=report_items)
 
 
-def get_xyz_analysis(db: Session) -> report_model.XYZReport:
+def get_xyz_analysis(
+    db: Session,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None
+) -> report_model.XYZReport:
     """
     Perform XYZ Analysis based on demand variability (Coefficient of Variation).
     X: Very stable (CV <= 0.5)
     Y: Moderately stable (0.5 < CV <= 1.0)
     Z: Volatile (CV > 1.0)
     """
-    # Analyze weekly consumption for the last 12 weeks
-    weeks_to_analyze = 12
-    start_date = datetime.utcnow() - timedelta(weeks=weeks_to_analyze)
+    # Default to last 12 weeks if not provided
+    if not start_date:
+        start_date = datetime.utcnow() - timedelta(weeks=12)
     
-    movements = db.execute(
-        select(Movement)
-        .where(
-            Movement.type == MovementType.SAIDA,
-            Movement.created_at >= start_date
-        )
-    ).scalars().all()
+    query = select(Movement).where(
+        Movement.type == MovementType.SAIDA,
+        Movement.created_at >= start_date
+    )
+
+    if end_date:
+        query = query.where(Movement.created_at <= end_date)
+
+    movements = db.execute(query).scalars().all()
 
     # Group by product and week
     product_weekly_demand = {}
@@ -223,27 +237,32 @@ def get_xyz_analysis(db: Session) -> report_model.XYZReport:
     return report_model.XYZReport(items=report_items)
 
 
-def get_stock_turnover(db: Session) -> report_model.TurnoverReport:
+def get_stock_turnover(
+    db: Session,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None
+) -> report_model.TurnoverReport:
     """
     Calculate Stock Turnover Rate.
     Turnover = Cost of Goods Sold / Average Inventory
     """
-    # Simplified: Using Quantity Sold / Average Quantity for this example
-    # Timeframe: Last 30 days
-    days = 30
-    start_date = datetime.utcnow() - timedelta(days=days)
+    # Default to last 30 days
+    if not start_date:
+        start_date = datetime.utcnow() - timedelta(days=30)
+    
+    query = select(
+        Movement.product_id,
+        func.sum(Movement.quantity).label("total_sold")
+    ).where(
+        Movement.type == MovementType.SAIDA,
+        Movement.created_at >= start_date
+    )
 
-    # Get total sold per product
+    if end_date:
+        query = query.where(Movement.created_at <= end_date)
+
     sales_results = db.execute(
-        select(
-            Movement.product_id,
-            func.sum(Movement.quantity).label("total_sold")
-        )
-        .where(
-            Movement.type == MovementType.SAIDA,
-            Movement.created_at >= start_date
-        )
-        .group_by(Movement.product_id)
+        query.group_by(Movement.product_id)
     ).all()
     sales_map = {r.product_id: r.total_sold for r in sales_results}
 
@@ -271,7 +290,11 @@ def get_stock_turnover(db: Session) -> report_model.TurnoverReport:
     return report_model.TurnoverReport(items=report_items)
 
 
-def get_financial_report(db: Session) -> report_model.FinancialReport:
+def get_financial_report(
+    db: Session,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None
+) -> report_model.FinancialReport:
     """Calculate financial metrics: Holding Cost, Potential Profit, Margins."""
     products = product_service.list_products(db)
     
@@ -297,25 +320,41 @@ def get_financial_report(db: Session) -> report_model.FinancialReport:
     )
 
 
-def get_forecast_report(db: Session) -> report_model.ForecastReport:
+def get_forecast_report(
+    db: Session,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None
+) -> report_model.ForecastReport:
     """
     Predict stockouts and calculate reorder points.
     Reorder Point = (Average Daily Usage * Lead Time) + Safety Stock
     """
-    # Calculate daily usage based on last 30 days
-    days = 30
-    start_date = datetime.utcnow() - timedelta(days=days)
+    # Default to last 30 days
+    if not start_date:
+        start_date = datetime.utcnow() - timedelta(days=30)
     
+    # Calculate duration in days for daily usage
+    if end_date:
+        duration_days = (end_date - start_date).days
+    else:
+        duration_days = (datetime.utcnow() - start_date).days
+    
+    if duration_days < 1:
+        duration_days = 1
+
+    query = select(
+        Movement.product_id,
+        func.sum(Movement.quantity).label("total_used")
+    ).where(
+        Movement.type == MovementType.SAIDA,
+        Movement.created_at >= start_date
+    )
+
+    if end_date:
+        query = query.where(Movement.created_at <= end_date)
+
     usage_results = db.execute(
-        select(
-            Movement.product_id,
-            func.sum(Movement.quantity).label("total_used")
-        )
-        .where(
-            Movement.type == MovementType.SAIDA,
-            Movement.created_at >= start_date
-        )
-        .group_by(Movement.product_id)
+        query.group_by(Movement.product_id)
     ).all()
     usage_map = {r.product_id: r.total_used for r in usage_results}
 
@@ -324,7 +363,7 @@ def get_forecast_report(db: Session) -> report_model.ForecastReport:
 
     for product in products:
         total_used = usage_map.get(product.id, 0)
-        daily_usage = total_used / days
+        daily_usage = total_used / duration_days
         
         lead_time = product.lead_time
         # Safety stock simplified: 50% of lead time demand

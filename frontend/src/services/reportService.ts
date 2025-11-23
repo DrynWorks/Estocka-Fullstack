@@ -53,28 +53,28 @@ export const reportService = {
         return response.data;
     },
 
-    async getABC(): Promise<{ items: ABCItem[] }> {
-        const response = await api.get('/reports/abc');
+    async getABC(params?: any): Promise<{ items: ABCItem[] }> {
+        const response = await api.get('/reports/abc', { params });
         return response.data;
     },
 
-    async getXYZ(): Promise<{ items: XYZItem[] }> {
-        const response = await api.get('/reports/xyz');
+    async getXYZ(params?: any): Promise<{ items: XYZItem[] }> {
+        const response = await api.get('/reports/xyz', { params });
         return response.data;
     },
 
-    async getTurnover(): Promise<{ items: TurnoverItem[] }> {
-        const response = await api.get('/reports/turnover');
+    async getTurnover(params?: any): Promise<{ items: TurnoverItem[] }> {
+        const response = await api.get('/reports/turnover', { params });
         return response.data;
     },
 
-    async getFinancial(): Promise<FinancialReport> {
-        const response = await api.get('/reports/financial');
+    async getFinancial(params?: any): Promise<FinancialReport> {
+        const response = await api.get('/reports/financial', { params });
         return response.data;
     },
 
-    async getForecast(): Promise<{ items: ForecastItem[] }> {
-        const response = await api.get('/reports/forecast');
+    async getForecast(params?: any): Promise<{ items: ForecastItem[] }> {
+        const response = await api.get('/reports/forecast', { params });
         return response.data;
     },
 };
