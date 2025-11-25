@@ -38,7 +38,8 @@ def create_user(
         full_name=user.full_name,
         profile_image_url=user.profile_image_url,
         profile_image_base64=user.profile_image_base64,
-        role_id=role_id,
+        role_id=role_id if role_id is not None else user.role_id,
+        organization_id=user.organization_id,
     )
     db.add(db_user)
     db.flush()

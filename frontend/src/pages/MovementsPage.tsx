@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { formatDateTime, formatNumber } from '@/utils/formatters';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,8 +40,9 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, ArrowDownCircle, ArrowUpCircle, Search, Download, FileText, FileSpreadsheet, TrendingUp } from 'lucide-react';
+import { Plus, ArrowDownCircle, ArrowUpCircle, Search, Download, FileText, FileSpreadsheet, TrendingUp, Loader2 } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
+import { TableSkeleton } from '@/components/TableSkeleton';
 import { toast } from 'sonner';
 import {
     Pagination,
@@ -60,6 +62,7 @@ export default function MovementsPage() {
     const [itemsPerPage] = useState(25);
     const [loading, setLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [formData, setFormData] = useState<MovementCreate>({
         product_id: 0,
         type: 'entrada',
@@ -108,6 +111,7 @@ export default function MovementsPage() {
 
     const handleSave = async () => {
         try {
+            setIsSaving(true);
             await movementService.create(formData);
             await loadData();
             setDialogOpen(false);
@@ -117,6 +121,8 @@ export default function MovementsPage() {
         } catch (error: any) {
             const message = error?.response?.data?.detail || 'Erro ao registrar movimentação';
             toast.error(message);
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -133,10 +139,10 @@ export default function MovementsPage() {
     const handleExportPDF = () => {
         const headers = ['Data/Hora', 'Produto', 'Tipo', 'Quantidade', 'Motivo', 'Usuário'];
         const data = filteredMovements.map(m => [
-            new Date(m.created_at).toLocaleString('pt-BR'),
+            formatDateTime(m.created_at),
             m.product.name,
             m.type,
-            m.quantity.toString(),
+            formatNumber(m.quantity),
             m.reason || '-',
             m.created_by?.full_name || 'Sistema'
         ]);
@@ -146,10 +152,10 @@ export default function MovementsPage() {
 
     const handleExportCSV = () => {
         const data = filteredMovements.map(m => ({
-            'Data/Hora': new Date(m.created_at).toLocaleString('pt-BR'),
+            'Data/Hora': formatDateTime(m.created_at),
             'Produto': m.product.name,
             'Tipo': m.type,
-            'Quantidade': m.quantity,
+            'Quantidade': formatNumber(m.quantity),
             'Motivo': m.reason || '-',
             'Usuário': m.created_by?.full_name || 'Sistema'
         }));
@@ -158,7 +164,24 @@ export default function MovementsPage() {
     };
 
     if (loading) {
-        return <div className="flex items-center justify-center h-64">Carregando...</div>;
+        return (
+            <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Movimentações</h1>
+                        <p className="text-slate-600 dark:text-slate-400 mt-1">Carregando...</p>
+                    </div>
+                </div>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Histórico de Movimentações</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <TableSkeleton rows={5} columns={6} />
+                    </CardContent>
+                </Card>
+            </div>
+        );
     }
 
     return (
@@ -261,7 +284,7 @@ export default function MovementsPage() {
                                 paginatedMovements.map((movement) => (
                                     <TableRow key={movement.id}>
                                         <TableCell className="font-mono text-sm">
-                                            {new Date(movement.created_at).toLocaleString('pt-BR')}
+                                            {formatDateTime(movement.created_at)}
                                         </TableCell>
                                         <TableCell>{movement.product.name}</TableCell>
                                         <TableCell>
@@ -277,7 +300,7 @@ export default function MovementsPage() {
                                                 {movement.type.charAt(0).toUpperCase() + movement.type.slice(1)}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="font-medium">{movement.quantity}</TableCell>
+                                        <TableCell className="font-medium">{formatNumber(movement.quantity)}</TableCell>
                                         <TableCell>{movement.reason || '-'}</TableCell>
                                         <TableCell>{movement.created_by?.full_name || 'Sistema'}</TableCell>
                                     </TableRow>
@@ -407,10 +430,13 @@ export default function MovementsPage() {
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                        <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={isSaving}>
                             Cancelar
                         </Button>
-                        <Button onClick={handleSave}>Registrar</Button>
+                        <Button onClick={handleSave} disabled={isSaving}>
+                            {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            Registrar
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

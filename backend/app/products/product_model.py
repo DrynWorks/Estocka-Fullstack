@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Column, ForeignKey, Integer, Numeric, String, UniqueConstraint
@@ -11,6 +11,9 @@ from sqlalchemy.orm import relationship
 
 from app.categories.category_model import CategoryPublic
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.organizations.organization_model import Organization
 
 
 class Product(Base):
@@ -28,8 +31,10 @@ class Product(Base):
     alert_level = Column(Integer, nullable=False, default=0)
     lead_time = Column(Integer, nullable=False, default=0)  # Days to restock
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
 
     category = relationship("Category", back_populates="products", lazy="joined")
+    organization = relationship("Organization", back_populates="products")
     movements = relationship(
         "Movement",
         back_populates="product",
@@ -39,13 +44,13 @@ class Product(Base):
 
 
 class ProductBase(BaseModel):
-    name: str = Field(min_length=2, max_length=150)
-    sku: str = Field(min_length=3, max_length=80)
-    price: Decimal = Field(ge=0)
-    cost_price: Decimal = Field(ge=0, default=Decimal("0.00"))
-    quantity: int = Field(ge=0)
-    alert_level: int = Field(ge=0)
-    lead_time: int = Field(ge=0, default=0)
+    name: str = Field(min_length=2, max_length=150, description="Nome do produto")
+    sku: str = Field(min_length=3, max_length=80, description="Código SKU único")
+    price: Decimal = Field(gt=0, description="Preço de venda (deve ser maior que zero)")
+    cost_price: Decimal = Field(gt=0, description="Preço de custo (deve ser maior que zero)")
+    quantity: int = Field(ge=0, description="Quantidade em estoque")
+    alert_level: int = Field(ge=0, description="Nível de alerta de estoque baixo")
+    lead_time: int = Field(ge=0, default=0, description="Tempo de reposição em dias")
     category_id: int
 
 

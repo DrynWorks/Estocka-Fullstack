@@ -12,6 +12,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.config import get_settings
 from app.database import Base
+from app.organizations.organization_model import Organization
 from app.products.product_model import Product
 from app.categories.category_model import Category
 from app.movements.movement_model import Movement, MovementType
@@ -178,21 +179,34 @@ def clean_database(session):
 
 
 def ensure_roles_and_users(session):
-    """Ensure default roles and users exist"""
-    print("👥 Verificando roles e usuários...")
+    """Ensure default organization, roles and users exist"""
+    print("👥 Verificando organização, roles e usuários...")
     
-    # Create roles if they don't exist
-    admin_role = session.execute(select(Role).where(Role.name == "admin")).scalar_one_or_none()
-    if not admin_role:
-        admin_role = Role(name="admin")
-        session.add(admin_role)
-        session.flush()
+    # First: Create default organization
+    from app.organizations.organization_model import Organization
     
-    user_role = session.execute(select(Role).where(Role.name == "user")).scalar_one_or_none()
-    if not user_role:
-        user_role = Role(name="user")
-        session.add(user_role)
+    org = session.execute(select(Organization).where(Organization.slug == "default")).scalar_one_or_none()
+    if not org:
+        org = Organization(
+            name="Default Organization",
+            slug="default",
+            active=True
+        )
+        session.add(org)
         session.flush()
+        print("  ✅ Organização padrão criada!")
+    
+    # Create ALL roles (old + new)
+    all_roles = ["admin", "user", "owner", "manager", "operator", "viewer"]
+    roles = {}
+    
+    for role_name in all_roles:
+        role = session.execute(select(Role).where(Role.name == role_name)).scalar_one_or_none()
+        if not role:
+            role = Role(name=role_name)
+            session.add(role)
+            session.flush()
+        roles[role_name] = role
     
     # Create admin user if doesn't exist
     admin = session.execute(select(User).where(User.email == "admin@estoque.com")).scalar_one_or_none()
@@ -201,17 +215,18 @@ def ensure_roles_and_users(session):
             email="admin@estoque.com",
             hashed_password=get_password_hash("1234"),
             full_name="Administrador Estocka",
-            role_id=admin_role.id
+            role_id=roles["admin"].id,
+            organization_id=org.id
         )
         session.add(admin)
         session.flush()
     
     session.commit()
-    print("✅ Roles e usuários criados!")
-    return admin
+    print("✅ Organização, roles e usuários criados!")
+    return admin, org.id
 
 
-def create_categories(session, level_config):
+def create_categories(session, level_config, organization_id):
     """Create categories based on level"""
     num_categories = level_config['categories']
     print(f"📁 Criando {num_categories} categorias...")
@@ -222,7 +237,7 @@ def create_categories(session, level_config):
         if existing:
             categories.append(existing)
         else:
-            category = Category(name=name, description=desc)
+            category = Category(name=name, description=desc, organization_id=organization_id)
             session.add(category)
             session.flush()
             categories.append(category)
@@ -232,7 +247,7 @@ def create_categories(session, level_config):
     return categories
 
 
-def create_products(session, categories, level_config):
+def create_products(session, categories, level_config, organization_id):
     """Create products based on level"""
     num_products = level_config['products']
     print(f"📦 Criando {num_products} produtos...")
@@ -296,7 +311,8 @@ def create_products(session, categories, level_config):
                 quantity=quantity,
                 alert_level=alert_level,
                 lead_time=lead_time,
-                category_id=category.id
+                category_id=category.id,
+                organization_id=organization_id
             )
             session.add(product)
             session.flush()
@@ -307,7 +323,7 @@ def create_products(session, categories, level_config):
     return products
 
 
-def create_movements(session, products, admin_user, level_config):
+def create_movements(session, products, admin_user, level_config, organization_id):
     """Create realistic movement history"""
     days_history = level_config['days_history']
     sale_frequency = level_config['sale_frequency']
@@ -329,7 +345,8 @@ def create_movements(session, products, admin_user, level_config):
                 quantity=initial_qty,
                 reason="Estoque Inicial",
                 created_at=start_date,
-                created_by_id=admin_user.id
+                created_by_id=admin_user.id,
+                organization_id=organization_id
             )
             session.add(entry)
             total_movements += 1
@@ -366,7 +383,8 @@ def create_movements(session, products, admin_user, level_config):
                     quantity=qty,
                     reason="Venda",
                     created_at=current_date + timedelta(hours=random.randint(9, 20)),
-                    created_by_id=admin_user.id
+                    created_by_id=admin_user.id,
+                    organization_id=organization_id
                 )
                 session.add(sale)
                 product_sales += qty
@@ -387,7 +405,8 @@ def create_movements(session, products, admin_user, level_config):
                     quantity=replenish_qty,
                     reason="Reposição de Estoque",
                     created_at=current_date,
-                    created_by_id=admin_user.id
+                    created_by_id=admin_user.id,
+                    organization_id=organization_id
                 )
                 session.add(entry)
                 total_movements += 1
@@ -419,16 +438,16 @@ def seed_database(level='medium', clean=False):
             clean_database(session)
         
         # Ensure roles and admin user
-        admin_user = ensure_roles_and_users(session)
+        admin_user, org_id = ensure_roles_and_users(session)
         
         # Create categories
-        categories = create_categories(session, level_config)
+        categories = create_categories(session, level_config, org_id)
         
         # Create products
-        products = create_products(session, categories, level_config)
+        products = create_products(session, categories, level_config, org_id)
         
         # Create movement history
-        create_movements(session, products, admin_user, level_config)
+        create_movements(session, products, admin_user, level_config, org_id)
         
         print("\n✨ Seed concluído com sucesso!")
         print(f"   📁 Categorias: {len(categories)}")

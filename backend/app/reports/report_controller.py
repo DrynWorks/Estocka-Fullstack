@@ -82,13 +82,48 @@ def get_movement_report(
     db: Session = Depends(get_db),
 ):
     """Return movement history within the requested window."""
+    start, end = get_date_range(period, start_date, end_date)
     return report_service.get_movement_history(
         db,
-        start_date=start_date,
-        end_date=end_date,
+        product_id=product_id,
+        start_date=start,
+        end_date=end,
+        movement_type=movement_type,
         limit=limit,
         offset=offset,
     )
+
+
+# New Insights Endpoints
+@router.get("/profitability")
+def get_profitability_report(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """Get profitability report with margin and profit per product."""
+    from .insights_service import InsightsService
+    return InsightsService.get_profitability_report(db, current_user.organization_id)
+
+
+@router.get("/comparison")
+def get_period_comparison(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+    days: int = Query(30, ge=7, le=365, description="Period length in days")
+):
+    """Compare current period vs previous period."""
+    from .insights_service import InsightsService
+    return InsightsService.compare_periods(db, current_user.organization_id, days)
+
+
+@router.get("/recommendations")
+def get_recommendations(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """Get automated recommendations based on data analysis."""
+    from .insights_service import InsightsService
+    return InsightsService.get_recommendations(db, current_user.organization_id)
 
 
 @router.get("/abc", response_model=report_model.ABCReport)

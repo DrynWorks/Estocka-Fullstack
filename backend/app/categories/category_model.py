@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.organizations.organization_model import Organization
 
 
 class Category(Base):
@@ -19,8 +22,10 @@ class Category(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(120), unique=True, index=True, nullable=False)
     description = Column(String(255), nullable=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
 
     products = relationship("Product", back_populates="category", lazy="selectin")
+    organization = relationship("Organization", back_populates="categories")
 
 
 class CategoryBase(BaseModel):

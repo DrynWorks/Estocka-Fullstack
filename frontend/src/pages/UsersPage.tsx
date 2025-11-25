@@ -47,8 +47,9 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { UserPlus, Pencil, Trash2, Users, Search, Download, FileText, FileSpreadsheet } from 'lucide-react';
+import { UserPlus, Pencil, Trash2, Users, Search, Download, FileText, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
+import { TableSkeleton } from '@/components/TableSkeleton';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
@@ -62,6 +63,8 @@ export default function UsersPage() {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
     const [editingUser, setEditingUser] = useState<User | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
     const [formData, setFormData] = useState<UserCreate>({
         email: '',
         password: '',
@@ -127,6 +130,7 @@ export default function UsersPage() {
 
     const handleSave = async () => {
         try {
+            setIsSaving(true);
             if (editingUser) {
                 // Update user - only send fields that are filled
                 const updateData: UserUpdate = {
@@ -150,6 +154,8 @@ export default function UsersPage() {
             console.error('Erro ao salvar usuário:', error);
             const message = error?.response?.data?.detail || 'Erro ao salvar usuário';
             toast.error(message);
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -161,6 +167,7 @@ export default function UsersPage() {
     const confirmDelete = async () => {
         if (!userToDelete) return;
         try {
+            setIsDeleting(true);
             await userService.deleteUser(userToDelete.id);
             toast.success(`Usuário "${userToDelete.full_name}" excluído com sucesso!`);
             setDeleteDialogOpen(false);
@@ -170,6 +177,8 @@ export default function UsersPage() {
             console.error('Erro ao deletar usuário:', error);
             const message = error?.response?.data?.detail || 'Erro ao excluir usuário';
             toast.error(message);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -196,8 +205,21 @@ export default function UsersPage() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-[400px]">
-                <div className="text-lg">Carregando...</div>
+            <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Usuários</h1>
+                        <p className="text-slate-600 dark:text-slate-400 mt-1">Carregando...</p>
+                    </div>
+                </div>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Gerenciamento de Usuários</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <TableSkeleton rows={5} columns={4} />
+                    </CardContent>
+                </Card>
             </div>
         );
     }
@@ -421,18 +443,19 @@ export default function UsersPage() {
                     </div>
 
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                        <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={isSaving}>
                             Cancelar
                         </Button>
-                        <Button onClick={handleSave}>
+                        <Button onClick={handleSave} disabled={isSaving}>
+                            {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                             {editingUser ? 'Atualizar' : 'Criar'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog >
+            </Dialog>
 
             {/* Delete Confirmation Dialog */}
-            < AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen} >
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
@@ -444,16 +467,18 @@ export default function UsersPage() {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={confirmDelete}
                             className="bg-red-600 hover:bg-red-700"
+                            disabled={isDeleting}
                         >
+                            {isDeleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                             Excluir
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
-            </AlertDialog >
-        </div >
+            </AlertDialog>
+        </div>
     );
 }

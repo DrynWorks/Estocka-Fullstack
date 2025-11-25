@@ -10,6 +10,7 @@ import {
     Menu,
     Sun,
     Moon,
+    FileText,
 } from 'lucide-react';
 import { useTheme } from '@/components/theme-provider';
 import { useState } from 'react';
@@ -30,6 +31,7 @@ const navigation = [
     { name: 'Movimentações', href: '/movements', icon: ArrowLeftRight },
     { name: 'Relatórios', href: '/reports', icon: BarChart3 },
     { name: 'Usuários', href: '/users', icon: Users, adminOnly: true },
+    { name: 'Auditoria', href: '/audit', icon: FileText, adminOnly: true },
 ];
 
 export default function Layout({ children }: { children?: React.ReactNode }) {
@@ -47,24 +49,24 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
         .slice(0, 2) || 'U';
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+        <div className="min-h-screen bg-background font-sans">
             {/* Sidebar */}
             <aside
-                className={`fixed top-0 left-0 z-40 h-screen transition-transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-                    } bg-slate-900 dark:bg-slate-950 border-r border-slate-800 dark:border-slate-800`}
-                style={{ width: '16rem' }}
+                className={`fixed top-0 left-0 z-40 h-screen transition-all duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+                    } bg-card/80 backdrop-blur-xl border-r border-border shadow-[0_0_15px_rgba(0,0,0,0.03)]`}
+                style={{ width: '17rem' }}
             >
-                <div className="h-full px-3 pb-4 overflow-y-auto">
+                <div className="h-full px-5 py-6 overflow-y-auto">
                     {/* Logo */}
-                    <div className="flex items-center justify-center py-6 mb-6 border-b border-slate-800">
-                        <div className="bg-gradient-to-br from-blue-600 to-indigo-600 w-10 h-10 rounded-xl flex items-center justify-center mr-3">
-                            <Package className="w-6 h-6 text-white" />
+                    <div className="flex items-center px-2 mb-8">
+                        <div className="bg-gradient-to-br from-primary to-green-600 w-10 h-10 rounded-xl flex items-center justify-center mr-3 shadow-lg shadow-green-500/20">
+                            <Package className="w-5 h-5 text-white" />
                         </div>
-                        <h1 className="text-2xl font-bold text-white">Estocka</h1>
+                        <h1 className="text-xl font-bold text-foreground tracking-tight">Estocka</h1>
                     </div>
 
                     {/* Navigation */}
-                    <ul className="space-y-2">
+                    <ul className="space-y-1.5">
                         {navigation.map((item) => {
                             if (item.adminOnly && !isAdmin) return null;
                             const isActive = location.pathname === item.href || (item.href === '/dashboard' && location.pathname === '/');
@@ -72,13 +74,13 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                                 <li key={item.name}>
                                     <Link
                                         to={item.href}
-                                        className={`flex items-center p-3 rounded-lg transition-colors ${isActive
-                                            ? 'bg-blue-600 text-white'
-                                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                                        className={`flex items-center px-4 py-3 rounded-xl transition-all duration-200 group ${isActive
+                                                ? 'bg-primary/10 text-primary font-semibold'
+                                                : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
                                             }`}
                                     >
-                                        <item.icon className="w-5 h-5 mr-3" />
-                                        <span className="font-medium">{item.name}</span>
+                                        <item.icon className={`w-5 h-5 mr-3 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'}`} />
+                                        <span className="text-sm">{item.name}</span>
                                     </Link>
                                 </li>
                             );
@@ -88,9 +90,9 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             </aside>
 
             {/* Main Content */}
-            <div className={`transition-all ${sidebarOpen ? 'ml-64' : 'ml-0'}`}>
+            <div className={`transition-all duration-300 ease-in-out ${sidebarOpen ? 'ml-[17rem]' : 'ml-0'}`}>
                 {/* Top Header */}
-                <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30">
+                <header className="bg-background/80 backdrop-blur-md border-b border-border sticky top-0 z-30">
                     <div className="px-6 py-4 flex items-center justify-between">
                         <Button
                             variant="ghost"
@@ -117,8 +119,8 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                                         <span className="text-sm font-medium text-slate-700 dark:text-slate-200 hidden sm:block">
                                             {user?.full_name}
                                         </span>
-                                        <Avatar>
-                                            <AvatarFallback className="bg-gradient-to-br from-blue-600 to-indigo-600 text-white">
+                                        <Avatar className="h-9 w-9 border-2 border-background shadow-sm">
+                                            <AvatarFallback className="bg-gradient-to-br from-primary to-green-600 text-white font-medium">
                                                 {userInitials}
                                             </AvatarFallback>
                                         </Avatar>

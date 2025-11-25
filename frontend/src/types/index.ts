@@ -46,3 +46,13 @@ export interface Category {
     name: string;
     description?: string;
 }
+
+export interface AuditLog {
+    id: number;
+    user_id: number | null;
+    action: 'create' | 'update' | 'delete';
+    entity_type: 'product' | 'movement' | 'category' | 'user';
+    entity_id: number | null;
+    details: Record<string, any> | null;
+    created_at: string;
+}

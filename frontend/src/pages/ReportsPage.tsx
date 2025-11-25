@@ -11,15 +11,16 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { reportService, type ABCItem, type XYZItem, type TurnoverItem, type FinancialReport, type ForecastItem } from '@/services/reportService';
-import { BarChart3, TrendingUp, DollarSign, HelpCircle, Activity, RefreshCw, AlertTriangle, Download, FileText, FileSpreadsheet } from 'lucide-react';
+import { BarChart3, TrendingUp, DollarSign, HelpCircle, Activity, RefreshCw, AlertTriangle, Download, FileText, FileSpreadsheet, Star, CheckCircle2, XCircle } from 'lucide-react';
 import {
     PieChart,
     Pie,
     Cell,
     ResponsiveContainer,
-    Tooltip,
+    Tooltip as RechartsTooltip,
     Legend
 } from 'recharts';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
     Dialog,
     DialogContent,
@@ -191,7 +192,18 @@ export default function ReportsPage() {
             Y: 'bg-yellow-600 hover:bg-yellow-700',
             Z: 'bg-red-600 hover:bg-red-700',
         };
-        return <Badge className={colors[classification] || 'bg-slate-600'}>{classification}</Badge>;
+        const icons: Record<string, any> = {
+            A: Star,
+            X: TrendingUp,
+            Z: AlertTriangle
+        };
+        const Icon = icons[classification];
+        return (
+            <Badge className={`${colors[classification] || 'bg-slate-600'} gap-1`}>
+                {Icon && <Icon className="w-3 h-3" />}
+                {classification}
+            </Badge>
+        );
     };
 
     const getStatusBadge = (status: string) => {
@@ -200,7 +212,18 @@ export default function ReportsPage() {
             WARNING: 'secondary',
             CRITICAL: 'destructive',
         };
-        return <Badge variant={variants[status] || 'default'}>{status}</Badge>;
+        const icons: Record<string, any> = {
+            OK: CheckCircle2,
+            WARNING: AlertTriangle,
+            CRITICAL: XCircle
+        };
+        const Icon = icons[status];
+        return (
+            <Badge variant={variants[status] || 'default'} className="gap-1">
+                {Icon && <Icon className="w-3 h-3" />}
+                {status}
+            </Badge>
+        );
     };
 
     if (loading) {
@@ -377,7 +400,15 @@ export default function ReportsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <Card className="hover:shadow-md transition-shadow">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-slate-600">Valor em Estoque</CardTitle>
+                            <CardTitle className="text-sm font-medium text-slate-600 flex items-center gap-2">
+                                Valor em Estoque
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger><HelpCircle className="w-3 h-3 text-slate-400" /></TooltipTrigger>
+                                        <TooltipContent><p>Soma do preço de venda de todos os produtos em estoque.</p></TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </CardTitle>
                             <div className="bg-green-100 p-2 rounded-full">
                                 <DollarSign className="w-4 h-4 text-green-600" />
                             </div>
@@ -390,7 +421,15 @@ export default function ReportsPage() {
                     </Card>
                     <Card className="hover:shadow-md transition-shadow">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-slate-600">Custo Total</CardTitle>
+                            <CardTitle className="text-sm font-medium text-slate-600 flex items-center gap-2">
+                                Custo Total
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger><HelpCircle className="w-3 h-3 text-slate-400" /></TooltipTrigger>
+                                        <TooltipContent><p>Soma do preço de custo de todos os produtos em estoque.</p></TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </CardTitle>
                             <div className="bg-blue-100 p-2 rounded-full">
                                 <DollarSign className="w-4 h-4 text-blue-600" />
                             </div>
@@ -403,7 +442,15 @@ export default function ReportsPage() {
                     </Card>
                     <Card className="hover:shadow-md transition-shadow">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-slate-600">Lucro Potencial</CardTitle>
+                            <CardTitle className="text-sm font-medium text-slate-600 flex items-center gap-2">
+                                Lucro Potencial
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger><HelpCircle className="w-3 h-3 text-slate-400" /></TooltipTrigger>
+                                        <TooltipContent><p>Diferença entre Valor em Estoque e Custo Total (Lucro Bruto estimado).</p></TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </CardTitle>
                             <div className="bg-green-100 p-2 rounded-full">
                                 <TrendingUp className="w-4 h-4 text-green-600" />
                             </div>
@@ -416,7 +463,15 @@ export default function ReportsPage() {
                     </Card>
                     <Card className="hover:shadow-md transition-shadow">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-slate-600">Margem Média</CardTitle>
+                            <CardTitle className="text-sm font-medium text-slate-600 flex items-center gap-2">
+                                Margem Média
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger><HelpCircle className="w-3 h-3 text-slate-400" /></TooltipTrigger>
+                                        <TooltipContent><p>Média percentual de lucro sobre o custo dos produtos.</p></TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </CardTitle>
                             <div className="bg-indigo-100 p-2 rounded-full">
                                 <BarChart3 className="w-4 h-4 text-indigo-600" />
                             </div>
@@ -449,7 +504,15 @@ export default function ReportsPage() {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <Card className="lg:col-span-1">
                             <CardHeader>
-                                <CardTitle>Distribuição ABC</CardTitle>
+                                <CardTitle className="flex items-center gap-2">
+                                    Distribuição ABC
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger><HelpCircle className="w-4 h-4 text-slate-400" /></TooltipTrigger>
+                                            <TooltipContent><p>Classificação de produtos por valor (Pareto 80/20).</p></TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </CardTitle>
                                 <CardDescription>Quantidade de produtos por classe</CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -469,7 +532,7 @@ export default function ReportsPage() {
                                                     <Cell key={`cell-${index}`} fill={entry.color} />
                                                 ))}
                                             </Pie>
-                                            <Tooltip />
+                                            <RechartsTooltip />
                                             <Legend />
                                         </PieChart>
                                     </ResponsiveContainer>
@@ -535,7 +598,19 @@ export default function ReportsPage() {
                     />
                     <Card>
                         <CardHeader>
-                            <CardTitle>Análise XYZ - Variabilidade da Demanda</CardTitle>
+                            <CardTitle className="flex items-center gap-2">
+                                Análise XYZ - Variabilidade da Demanda
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger><HelpCircle className="w-4 h-4 text-slate-400" /></TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>X: Demanda constante (fácil prever)</p>
+                                            <p>Y: Demanda variável (sazonal)</p>
+                                            <p>Z: Demanda irregular (difícil prever)</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </CardTitle>
                             <CardDescription>
                                 X (demanda estável), Y (demanda variável), Z (demanda irregular)
                             </CardDescription>
@@ -584,7 +659,15 @@ export default function ReportsPage() {
                     )}
                     <Card>
                         <CardHeader>
-                            <CardTitle>Giro de Estoque</CardTitle>
+                            <CardTitle className="flex items-center gap-2">
+                                Giro de Estoque
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger><HelpCircle className="w-4 h-4 text-slate-400" /></TooltipTrigger>
+                                        <TooltipContent><p>Velocidade com que o estoque é vendido e reposto.</p></TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </CardTitle>
                             <CardDescription>
                                 Taxa de renovação do estoque (últimos 30 dias)
                             </CardDescription>
@@ -635,7 +718,15 @@ export default function ReportsPage() {
                     />
                     <Card>
                         <CardHeader>
-                            <CardTitle>Previsão de Estoque</CardTitle>
+                            <CardTitle className="flex items-center gap-2">
+                                Previsão de Estoque
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger><HelpCircle className="w-4 h-4 text-slate-400" /></TooltipTrigger>
+                                        <TooltipContent><p>Estimativa de quando o estoque acabará baseado no consumo diário.</p></TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </CardTitle>
                             <CardDescription>
                                 Análise de risco de ruptura e ponto de pedido
                             </CardDescription>

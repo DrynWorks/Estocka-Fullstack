@@ -33,6 +33,7 @@ class Movement(Base):
     note = Column(Text, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
 
     product = relationship("Product", back_populates="movements", lazy="joined")
     created_by = relationship("User", back_populates="movements", lazy="joined")
@@ -41,9 +42,9 @@ class Movement(Base):
 class MovementCreate(BaseModel):
     product_id: int
     type: MovementType
-    quantity: int = Field(gt=0)
-    reason: Optional[str] = Field(default=None, max_length=150)
-    note: Optional[str] = None
+    quantity: int = Field(gt=0, description="Quantidade deve ser maior que zero")
+    reason: Optional[str] = Field(default=None, max_length=150, description="Motivo da movimentação")
+    note: Optional[str] = Field(default=None, description="Observações adicionais")
 
 
 class MovementFilter(BaseModel):
