@@ -88,6 +88,7 @@ export default function MovementsPage() {
             ]);
             setMovements(movementsData);
             setProducts(productsData);
+            setCurrentPage(1);
         } catch (error) {
             console.error('Erro ao carregar dados:', error);
             toast.error('Erro ao carregar dados');
@@ -96,7 +97,11 @@ export default function MovementsPage() {
         }
     };
 
-    const filteredMovements = movements.filter((m) => {
+    const sortedMovements = [...movements].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+
+    const filteredMovements = sortedMovements.filter((m) => {
         const matchesSearch = m.product.name.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesType = typeFilter === 'all' || m.type === typeFilter;
         return matchesSearch && matchesType;
@@ -114,7 +119,7 @@ export default function MovementsPage() {
             toast.success('Movimentação registrada com sucesso!');
             setDialogOpen(false);
             resetForm();
-            loadData();
+            await loadData();
         } catch (error: any) {
             console.error('Erro ao salvar movimentação:', error);
             const message = error?.response?.data?.detail || 'Erro ao salvar movimentação';

@@ -4,9 +4,9 @@ import dashboardService from '@/services/dashboardService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const COLORS = {
-    A: 'hsl(var(--chart-1))',  // Green for A class
-    B: 'hsl(var(--chart-2))',  // Yellow for B class
-    C: 'hsl(var(--chart-3))',  // Orange for C class
+    A: 'hsl(var(--chart-1))',
+    B: 'hsl(var(--chart-2))',
+    C: 'hsl(var(--chart-3))',
 };
 
 export function ABCDistributionChart() {
@@ -20,12 +20,17 @@ export function ABCDistributionChart() {
                 setLoading(true);
                 const response = await dashboardService.getABCDistribution();
 
-                // Transform data for recharts
-                const chartData = Object.entries(response).map(([key, value]) => ({
-                    name: `Classe ${key}`,
-                    value: value as number,
-                    percentage: ((value as number) * 100 / Object.values(response).reduce((a: number, b) => a + (b as number), 0)).toFixed(1)
-                }));
+                const entries = Object.entries(response || {});
+                const total = entries.reduce((acc, [, v]) => acc + (v as number), 0);
+
+                const chartData =
+                    total > 0
+                        ? entries.map(([key, value]) => ({
+                            name: `Classe ${key}`,
+                            value: value as number,
+                            percentage: ((value as number) * 100 / total).toFixed(1)
+                        }))
+                        : [];
 
                 setData(chartData);
                 setError(null);

@@ -52,6 +52,14 @@ import type { Product, Category } from '@/types';
 import { Plus, Search, Pencil, Trash2, AlertTriangle, Package, Download, FileText, FileSpreadsheet } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
 import { usePermissions } from '@/hooks/usePermissions';
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from '@/components/ui/pagination';
 
 export default function ProductsPage() {
     const { canCreate, canEdit, canDelete, canExport } = usePermissions();
@@ -65,6 +73,7 @@ export default function ProductsPage() {
     const [search, setSearch] = useState<string>('');
     const [categoryFilter, setCategoryFilter] = useState<string>('all');
     const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out' | 'ok'>('all');
+    const [currentPage, setCurrentPage] = useState<number>(1);
     const [formData, setFormData] = useState({
         name: '',
         sku: '',
@@ -85,6 +94,7 @@ export default function ProductsPage() {
             ]);
             setCategories(cats);
             setProducts(prods);
+            setCurrentPage(1);
         } catch (error) {
             console.error('Erro ao carregar dados', error);
         } finally {
@@ -188,6 +198,13 @@ export default function ProductsPage() {
             (stockFilter === 'ok' && p.quantity > p.alert_level);
         return matchesTerm && matchesCategory && matchesStock;
     });
+
+    const itemsPerPage = 12;
+    const totalPages = Math.max(1, Math.ceil(filteredProducts.length / itemsPerPage));
+    const page = Math.min(currentPage, totalPages);
+    const startIndex = (page - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
 
     const getStockStatus = (product: Product) => {
         if (product.quantity === 0) {
@@ -331,7 +348,7 @@ export default function ProductsPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredProducts.length === 0 ? (
+                            {paginatedProducts.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={7} className="p-0">
                                         {products.length === 0 ? (
@@ -355,7 +372,7 @@ export default function ProductsPage() {
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                filteredProducts.map((product) => (
+                                paginatedProducts.map((product) => (
                                     <TableRow key={product.id}>
                                         <TableCell className="font-medium">{product.name}</TableCell>
                                         <TableCell className="font-mono text-sm">{product.sku}</TableCell>
@@ -392,6 +409,48 @@ export default function ProductsPage() {
                     </Table>
                 </CardContent>
             </Card>
+
+            {filteredProducts.length > itemsPerPage && (
+                <div className="flex items-center justify-between px-2 py-4">
+                    <div className="text-sm text-slate-600">
+                        Mostrando {startIndex + 1} a {Math.min(endIndex, filteredProducts.length)} de {filteredProducts.length} produtos
+                    </div>
+                    <Pagination>
+                        <PaginationContent>
+                            <PaginationItem>
+                                <PaginationPrevious
+                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    className={page === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                                />
+                            </PaginationItem>
+                            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                                let pageNum = i + 1;
+                                if (totalPages > 5) {
+                                    if (page > 3) pageNum = page - 2 + i;
+                                    if (page > totalPages - 2) pageNum = totalPages - 4 + i;
+                                }
+                                return (
+                                    <PaginationItem key={pageNum}>
+                                        <PaginationLink
+                                            onClick={() => setCurrentPage(pageNum)}
+                                            isActive={page === pageNum}
+                                            className="cursor-pointer"
+                                        >
+                                            {pageNum}
+                                        </PaginationLink>
+                                    </PaginationItem>
+                                );
+                            })}
+                            <PaginationItem>
+                                <PaginationNext
+                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                    className={page === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                                />
+                            </PaginationItem>
+                        </PaginationContent>
+                    </Pagination>
+                </div>
+            )}
 
             {/* Create/Edit Dialog */}
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
