@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -73,8 +73,18 @@ export default function LoginPage() {
                             {isLoading ? 'Entrando...' : 'Entrar'}
                         </Button>
                     </form>
-                    <div className="mt-6 text-center text-sm text-muted-foreground">
-                        <p>Credenciais padrão:</p>
+
+                    <div className="mt-6 text-center text-sm">
+                        <p className="text-muted-foreground">
+                            Não tem uma conta?{' '}
+                            <Link to="/signup" className="text-primary hover:underline font-medium">
+                                Criar conta
+                            </Link>
+                        </p>
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t text-center text-sm text-muted-foreground">
+                        <p>Credenciais de teste:</p>
                         <p className="font-mono">admin@estoque.com / 1234</p>
                     </div>
                 </CardContent>

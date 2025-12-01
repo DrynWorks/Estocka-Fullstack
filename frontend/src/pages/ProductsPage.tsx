@@ -51,177 +51,30 @@ import {
 import type { Product, Category } from '@/types';
 import { Plus, Search, Pencil, Trash2, AlertTriangle, Package, Download, FileText, FileSpreadsheet } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
-import { toast } from 'sonner';
+import { usePermissions } from '@/hooks/usePermissions';
 
 export default function ProductsPage() {
+    const { canCreate, canEdit, canDelete, canExport } = usePermissions();
     const [products, setProducts] = useState<Product[]>([]);
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [categoryFilter, setCategoryFilter] = useState<string>('all');
-    const [loading, setLoading] = useState(true);
-    const [dialogOpen, setDialogOpen] = useState(false);
-    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [productToDelete, setProductToDelete] = useState<Product | null>(null);
-    const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-    const [formData, setFormData] = useState({
-        name: '',
-        sku: '',
-        price: '',
-        cost_price: '',
-        quantity: '',
-        alert_level: '',
-        lead_time: '',
-        category_id: '',
-    });
+    // ... existing state ...
 
-    useEffect(() => {
-        loadData();
-    }, []);
+    // ... existing useEffect and loadData ...
 
-    const loadData = async () => {
-        try {
-            const [productsData, categoriesData] = await Promise.all([
-                productService.getAll(),
-                categoryService.getAll(),
-            ]);
-            setProducts(productsData);
-            setCategories(categoriesData);
-        } catch (error) {
-            console.error('Erro ao carregar dados:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    // ... existing filteredProducts ...
 
-    const filteredProducts = products.filter((p) => {
-        const matchesSearch =
-            p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.sku.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesCategory =
-            categoryFilter === 'all' || p.category.id.toString() === categoryFilter;
-        return matchesSearch && matchesCategory;
-    });
+    // ... existing handleSave ...
 
-    const handleSave = async () => {
-        try {
-            const data = {
-                name: formData.name,
-                sku: formData.sku,
-                price: parseFloat(formData.price),
-                cost_price: parseFloat(formData.cost_price),
-                quantity: parseInt(formData.quantity),
-                alert_level: parseInt(formData.alert_level),
-                lead_time: parseInt(formData.lead_time),
-                category_id: parseInt(formData.category_id),
-            };
+    // ... existing openDeleteDialog ...
 
-            if (editingProduct) {
-                await productService.update(editingProduct.id, data as any);
-            } else {
-                await productService.create(data as any);
-            }
-            await loadData();
-            setDialogOpen(false);
-            resetForm();
-            toast.success(editingProduct ? 'Produto atualizado com sucesso!' : 'Produto criado com sucesso!');
-        } catch (error: any) {
-            console.error('Erro ao salvar produto:', error);
-            const message = error?.response?.data?.detail || 'Erro ao salvar produto';
-            toast.error(message);
-        }
-    };
+    // ... existing confirmDelete ...
 
-    const openDeleteDialog = (product: Product) => {
-        setProductToDelete(product);
-        setDeleteDialogOpen(true);
-    };
+    // ... existing handleExportPDF and handleExportCSV ...
 
-    const confirmDelete = async () => {
-        if (!productToDelete) return;
-        try {
-            await productService.delete(productToDelete.id);
-            await loadData();
-            toast.success(`Produto "${productToDelete.name}" excluído com sucesso!`);
-            setDeleteDialogOpen(false);
-            setProductToDelete(null);
-        } catch (error: any) {
-            console.error('Erro ao deletar produto:', error);
-            const message = error?.response?.data?.detail || 'Erro ao excluir produto';
-            toast.error(message);
-        }
-    };
+    // ... existing openDialog ...
 
+    // ... existing resetForm ...
 
-
-    const handleExportPDF = () => {
-        const headers = ['Produto', 'SKU', 'Categoria', 'Preço', 'Estoque', 'Status'];
-        const data = filteredProducts.map(p => [
-            p.name,
-            p.sku,
-            p.category.name,
-            `R$ ${p.price.toFixed(2)}`,
-            p.quantity.toString(),
-            p.quantity === 0 ? 'Sem estoque' : p.quantity <= p.alert_level ? 'Estoque Baixo' : 'OK'
-        ]);
-        exportToPDF('Relatório de Produtos', headers, data, 'produtos');
-        toast.success('Relatório PDF exportado com sucesso!');
-    };
-
-    const handleExportCSV = () => {
-        const data = filteredProducts.map(p => ({
-            'Produto': p.name,
-            'SKU': p.sku,
-            'Categoria': p.category.name,
-            'Preço': p.price.toFixed(2),
-            'Custo': p.cost_price.toFixed(2),
-            'Estoque': p.quantity,
-            'Nível Alerta': p.alert_level,
-            'Status': p.quantity === 0 ? 'Sem estoque' : p.quantity <= p.alert_level ? 'Estoque Baixo' : 'OK'
-        }));
-        exportToCSV(data, 'produtos');
-        toast.success('Relatório CSV exportado com sucesso!');
-    };
-
-    const openDialog = (product?: Product) => {
-        if (product) {
-            setEditingProduct(product);
-            setFormData({
-                name: product.name,
-                sku: product.sku,
-                price: product.price.toString(),
-                cost_price: product.cost_price.toString(),
-                quantity: product.quantity.toString(),
-                alert_level: product.alert_level.toString(),
-                lead_time: product.lead_time.toString(),
-                category_id: product.category.id.toString(),
-            });
-        } else {
-            resetForm();
-        }
-        setDialogOpen(true);
-    };
-
-    const resetForm = () => {
-        setEditingProduct(null);
-        setFormData({
-            name: '',
-            sku: '',
-            price: '',
-            cost_price: '',
-            quantity: '',
-            alert_level: '',
-            lead_time: '',
-            category_id: '',
-        });
-    };
-
-    const getStockStatus = (product: Product) => {
-        if (product.quantity === 0)
-            return <Badge variant="destructive" className="gap-1"><AlertTriangle className="w-3 h-3" />Sem estoque</Badge>;
-        if (product.quantity <= product.alert_level)
-            return <Badge variant="outline" className="text-yellow-700 border-yellow-400 bg-yellow-50 gap-1"><Package className="w-3 h-3" />Estoque Baixo</Badge>;
-        return <Badge variant="default" className="bg-green-600 gap-1"><Package className="w-3 h-3" />OK</Badge>;
-    };
+    // ... existing getStockStatus ...
 
     if (loading) {
         return <div className="flex items-center justify-center h-64">Carregando...</div>;
@@ -235,60 +88,39 @@ export default function ProductsPage() {
                     <p className="text-slate-600 mt-1">Gerencie o catálogo de produtos</p>
                 </div>
                 <div className="flex gap-2">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" className="gap-2">
-                                <Download className="w-4 h-4" />
-                                Exportar
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Formato de Exportação</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={handleExportPDF} className="gap-2 cursor-pointer">
-                                <FileText className="w-4 h-4" />
-                                PDF (Relatório)
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleExportCSV} className="gap-2 cursor-pointer">
-                                <FileSpreadsheet className="w-4 h-4" />
-                                CSV (Dados)
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                    <Button onClick={() => openDialog()}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Novo Produto
-                    </Button>
+                    {canExport('products') && (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" className="gap-2">
+                                    <Download className="w-4 h-4" />
+                                    Exportar
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Formato de Exportação</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={handleExportPDF} className="gap-2 cursor-pointer">
+                                    <FileText className="w-4 h-4" />
+                                    PDF (Relatório)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleExportCSV} className="gap-2 cursor-pointer">
+                                    <FileSpreadsheet className="w-4 h-4" />
+                                    CSV (Dados)
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    )}
+                    {canCreate('products') && (
+                        <Button onClick={() => openDialog()}>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Novo Produto
+                        </Button>
+                    )}
                 </div>
             </div>
 
             <Card>
-                <CardHeader>
-                    <div className="flex items-center gap-4">
-                        <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                            <Input
-                                placeholder="Buscar por nome ou SKU..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-9"
-                            />
-                        </div>
-                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                            <SelectTrigger className="w-[200px]">
-                                <SelectValue placeholder="Categoria" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todas as categorias</SelectItem>
-                                {categories.map((cat) => (
-                                    <SelectItem key={cat.id} value={cat.id.toString()}>
-                                        {cat.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </CardHeader>
+                {/* ... existing CardHeader ... */}
                 <CardContent>
                     <Table>
                         <TableHeader>
@@ -311,10 +143,10 @@ export default function ProductsPage() {
                                                 icon={Package}
                                                 title="Nenhum produto cadastrado"
                                                 description="Comece adicionando seu primeiro produto ao estoque"
-                                                action={{
+                                                action={canCreate('products') ? {
                                                     label: "Novo Produto",
                                                     onClick: () => openDialog()
-                                                }}
+                                                } : undefined}
                                             />
                                         ) : (
                                             <EmptyState
@@ -337,20 +169,24 @@ export default function ProductsPage() {
                                         <TableCell>{getStockStatus(product)}</TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex items-center justify-end gap-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => openDialog(product)}
-                                                >
-                                                    <Pencil className="w-4 h-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => openDeleteDialog(product)}
-                                                >
-                                                    <Trash2 className="w-4 h-4 text-red-600" />
-                                                </Button>
+                                                {canEdit('products') && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => openDialog(product)}
+                                                    >
+                                                        <Pencil className="w-4 h-4" />
+                                                    </Button>
+                                                )}
+                                                {canDelete('products') && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => openDeleteDialog(product)}
+                                                    >
+                                                        <Trash2 className="w-4 h-4 text-red-600" />
+                                                    </Button>
+                                                )}
                                             </div>
                                         </TableCell>
                                     </TableRow>

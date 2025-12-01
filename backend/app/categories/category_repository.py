@@ -8,26 +8,40 @@ from sqlalchemy.orm import Session
 from . import category_model
 
 
-def get_category_by_id(db: Session, category_id: int):
-    """Return a category by ID."""
-    return db.get(category_model.Category, category_id)
-
-
-def get_category_by_name(db: Session, name: str):
-    """Return a category by name."""
+def get_category_by_id(db: Session, category_id: int, organization_id: int):
+    """Return a category by ID and organization."""
     return db.execute(
-        select(category_model.Category).where(category_model.Category.name == name)
+        select(category_model.Category).where(
+            category_model.Category.id == category_id,
+            category_model.Category.organization_id == organization_id
+        )
     ).scalar_one_or_none()
 
 
-def list_categories(db: Session):
-    """List all categories."""
-    return db.execute(select(category_model.Category)).scalars().all()
+def get_category_by_name(db: Session, name: str, organization_id: int):
+    """Return a category by name and organization."""
+    return db.execute(
+        select(category_model.Category).where(
+            category_model.Category.name == name,
+            category_model.Category.organization_id == organization_id
+        )
+    ).scalar_one_or_none()
 
 
-def create_category(db: Session, category: category_model.CategoryCreate):
+def list_categories(db: Session, organization_id: int):
+    """List all categories for an organization."""
+    return db.execute(
+        select(category_model.Category).where(category_model.Category.organization_id == organization_id)
+    ).scalars().all()
+
+
+def create_category(db: Session, category: category_model.CategoryCreate, organization_id: int):
     """Create a new category."""
-    db_category = category_model.Category(name=category.name, description=category.description)
+    db_category = category_model.Category(
+        name=category.name,
+        description=category.description,
+        organization_id=organization_id
+    )
     db.add(db_category)
     db.commit()
     db.refresh(db_category)

@@ -17,6 +17,7 @@ from . import movement_model, movement_repository
 def create_movement(
     db: Session,
     movement: movement_model.MovementCreate,
+    organization_id: int,
     *,
     created_by_user_id: int | None = None,
     manage_transaction: bool = True,
@@ -30,6 +31,7 @@ def create_movement(
     Args:
         db: Database session.
         movement: Movement creation schema.
+        organization_id: ID of the organization.
         created_by_user_id: ID of the user creating the movement.
         manage_transaction: If True, manages the database transaction.
 
@@ -42,7 +44,7 @@ def create_movement(
     """
     transaction_ctx = db.begin() if manage_transaction else nullcontext()
     with transaction_ctx:
-        product = product_repository.get_product_by_id(db, product_id=movement.product_id)
+        product = product_repository.get_product_by_id(db, product_id=movement.product_id, organization_id=organization_id)
         if product is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
 
@@ -61,6 +63,7 @@ def create_movement(
         db_movement = movement_repository.create_movement(
             db,
             movement,
+            organization_id=organization_id,
             created_by_user_id=created_by_user_id,
         )
         
@@ -83,45 +86,49 @@ def create_movement(
     return db_movement
 
 
-def list_movements(db: Session) -> list[movement_model.Movement]:
+def list_movements(db: Session, organization_id: int) -> list[movement_model.Movement]:
     """
-    List all stock movements.
+    List all stock movements for an organization.
 
     Args:
         db: Database session.
+        organization_id: ID of the organization.
 
     Returns:
         List of all Movement ORM instances.
     """
-    return movement_repository.list_movements(db)
+    return movement_repository.list_movements(db, organization_id=organization_id)
 
 
-def list_recent_movements(db: Session, limit: int = constants.DEFAULT_PAGE_SIZE) -> list[movement_model.Movement]:
+def list_recent_movements(db: Session, organization_id: int, limit: int = constants.DEFAULT_PAGE_SIZE) -> list[movement_model.Movement]:
     """
-    List the most recent stock movements.
+    List the most recent stock movements for an organization.
 
     Args:
         db: Database session.
+        organization_id: ID of the organization.
         limit: Maximum number of movements to return (default: 50).
 
     Returns:
         List of recent Movement ORM instances.
     """
-    return movement_repository.list_recent_movements(db, limit=limit)
+    return movement_repository.list_recent_movements(db, organization_id=organization_id, limit=limit)
 
 
 def filter_movements(
     db: Session,
+    organization_id: int,
     filters: movement_model.MovementFilter,
     *,
     limit: int | None = None,
     offset: int | None = None,
 ) -> list[movement_model.Movement]:
     """
-    Filter movements based on criteria.
+    Filter movements based on criteria for an organization.
 
     Args:
         db: Database session.
+        organization_id: ID of the organization.
         filters: Filter criteria (date range, type, product, etc.).
         limit: Max results to return.
         offset: Pagination offset.
@@ -129,16 +136,17 @@ def filter_movements(
     Returns:
         List of filtered Movement ORM instances.
     """
-    return movement_repository.filter_movements(db, filters, limit=limit, offset=offset)
+    return movement_repository.filter_movements(db, organization_id=organization_id, filters=filters, limit=limit, offset=offset)
 
 
-def get_movement(db: Session, movement_id: int) -> movement_model.Movement:
+def get_movement(db: Session, movement_id: int, organization_id: int) -> movement_model.Movement:
     """
     Retrieve a specific movement by ID.
 
     Args:
         db: Database session.
         movement_id: ID of the movement.
+        organization_id: ID of the organization.
 
     Returns:
         The Movement ORM instance.
@@ -146,7 +154,7 @@ def get_movement(db: Session, movement_id: int) -> movement_model.Movement:
     Raises:
         HTTPException(404): If the movement is not found.
     """
-    db_movement = movement_repository.get_movement_by_id(db, movement_id=movement_id)
+    db_movement = movement_repository.get_movement_by_id(db, movement_id=movement_id, organization_id=organization_id)
     if db_movement is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movement not found")
     return db_movement
@@ -155,6 +163,7 @@ def get_movement(db: Session, movement_id: int) -> movement_model.Movement:
 def revert_movement(
     db: Session,
     movement_id: int,
+    organization_id: int,
     *,
     created_by_user_id: int,
 ) -> movement_model.Movement:
@@ -167,6 +176,7 @@ def revert_movement(
     Args:
         db: Database session.
         movement_id: ID of the movement to revert.
+        organization_id: ID of the organization.
         created_by_user_id: ID of the user performing the reversion.
 
     Returns:
@@ -176,7 +186,7 @@ def revert_movement(
         HTTPException(404): If the original movement is not found.
         HTTPException(400): If reverting would cause negative stock.
     """
-    original = get_movement(db, movement_id)
+    original = get_movement(db, movement_id, organization_id=organization_id)
 
     inverse_type = (
         movement_model.MovementType.ENTRADA
@@ -195,5 +205,6 @@ def revert_movement(
     return create_movement(
         db,
         reverse_payload,
+        organization_id=organization_id,
         created_by_user_id=created_by_user_id,
     )

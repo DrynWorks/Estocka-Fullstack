@@ -24,8 +24,14 @@ router = APIRouter(
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_role("admin"))],
 )
-def create_user(user: user_model.UserCreate, db: Session = Depends(get_db)):
+def create_user(
+    user: user_model.UserCreate, 
+    db: Session = Depends(get_db),
+    current_user: user_model.User = Depends(get_current_user)
+):
     """Create a new user (admin only)."""
+    # Force organization_id to be the same as the current user's organization
+    user.organization_id = current_user.organization_id
     return user_service.create_new_user(db=db, user=user)
 
 

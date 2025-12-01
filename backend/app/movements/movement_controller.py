@@ -34,6 +34,7 @@ def create_movement(
     return movement_service.create_movement(
         db,
         movement,
+        organization_id=current_user.organization_id,
         created_by_user_id=current_user.id,
     )
 
@@ -52,6 +53,7 @@ def revert_movement(
     return movement_service.revert_movement(
         db,
         movement_id,
+        organization_id=current_user.organization_id,
         created_by_user_id=current_user.id,
     )
 
@@ -75,27 +77,32 @@ def forbid_delete(movement_id: int) -> None:
 
 
 @router.get("/", response_model=List[movement_model.MovementPublic])
-def list_movements(db: Session = Depends(get_db)):
+def list_movements(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """List every movement."""
-    return movement_service.list_movements(db)
+    return movement_service.list_movements(db, organization_id=current_user.organization_id)
 
 
 @router.get("/history", response_model=List[movement_model.MovementPublic])
 def list_recent_movements(
     limit: int = Query(default=100, ge=1, le=500, description="Maximum number of records"),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """List the most recent movements."""
-    return movement_service.list_recent_movements(db, limit=limit)
+    return movement_service.list_recent_movements(db, organization_id=current_user.organization_id, limit=limit)
 
 
 @router.get("/recent", response_model=List[movement_model.MovementPublic])
 def get_recent_movements(
     limit: int = Query(default=10, ge=1, le=500, description="Maximum number of records"),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Get recent movements (alias for /history)."""
-    return movement_service.list_recent_movements(db, limit=limit)
+    return movement_service.list_recent_movements(db, organization_id=current_user.organization_id, limit=limit)
 
 
 @router.get("/filter", response_model=List[movement_model.MovementPublic])
@@ -105,6 +112,7 @@ def filter_movements(
     movement_type: movement_model.MovementType | None = Query(default=None, alias="type"),
     product_id: int | None = Query(default=None),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Filter movements by date, type, and product."""
     filters = movement_model.MovementFilter(
@@ -113,4 +121,4 @@ def filter_movements(
         type=movement_type,
         product_id=product_id,
     )
-    return movement_service.filter_movements(db, filters)
+    return movement_service.filter_movements(db, organization_id=current_user.organization_id, filters=filters)

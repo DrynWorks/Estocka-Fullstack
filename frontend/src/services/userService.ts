@@ -26,26 +26,51 @@ export interface UserUpdate {
 
 export const userService = {
     async getUsers(): Promise<User[]> {
-        const response = await api.get('/users');
-        return response.data;
+        try {
+            const response = await api.get('/users');
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching users:', error);
+            throw error;
+        }
     },
 
     async getUserById(id: number): Promise<User> {
-        const response = await api.get(`/users/${id}`);
-        return response.data;
+        try {
+            const response = await api.get(`/users/${id}`);
+            return response.data;
+        } catch (error) {
+            console.error(`Error fetching user ${id}:`, error);
+            throw error;
+        }
     },
 
     async createUser(user: UserCreate): Promise<User> {
-        const response = await api.post('/users', user);
-        return response.data;
+        try {
+            const response = await api.post('/users', user);
+            return response.data;
+        } catch (error) {
+            console.error('Error creating user:', error);
+            throw error;
+        }
     },
 
     async updateUser(id: number, user: UserUpdate): Promise<User> {
-        const response = await api.patch(`/users/${id}`, user);
-        return response.data;
+        try {
+            const response = await api.patch(`/users/${id}`, user);
+            return response.data;
+        } catch (error) {
+            console.error(`Error updating user ${id}:`, error);
+            throw error;
+        }
     },
 
     async deleteUser(id: number): Promise<void> {
-        await api.delete(`/users/${id}`);
+        try {
+            await api.delete(`/users/${id}`);
+        } catch (error) {
+            console.error(`Error deleting user ${id}:`, error);
+            throw error;
+        }
     },
 };

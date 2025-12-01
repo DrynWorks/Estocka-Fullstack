@@ -15,6 +15,7 @@ from . import movement_model
 def create_movement(
     db: Session,
     movement: movement_model.MovementCreate,
+    organization_id: int,
     *,
     created_by_user_id: int | None = None,
 ) -> movement_model.Movement:
@@ -26,6 +27,7 @@ def create_movement(
         reason=movement.reason,
         note=movement.note,
         created_by_id=created_by_user_id,
+        organization_id=organization_id,
     )
     db.add(db_movement)
     db.flush()
@@ -33,23 +35,25 @@ def create_movement(
     return db_movement
 
 
-def list_movements(db: Session) -> List[movement_model.Movement]:
-    """Return all movements ordered by creation date."""
+def list_movements(db: Session, organization_id: int) -> List[movement_model.Movement]:
+    """Return all movements ordered by creation date for an organization."""
     return (
         db.query(movement_model.Movement)
         .options(joinedload(movement_model.Movement.product).joinedload(Product.category))
         .options(joinedload(movement_model.Movement.created_by))
+        .filter(movement_model.Movement.organization_id == organization_id)
         .order_by(movement_model.Movement.created_at.desc())
         .all()
     )
 
 
-def list_recent_movements(db: Session, limit: int = 50) -> List[movement_model.Movement]:
-    """Return the latest movements limited by the provided size."""
+def list_recent_movements(db: Session, organization_id: int, limit: int = 50) -> List[movement_model.Movement]:
+    """Return the latest movements limited by the provided size for an organization."""
     return (
         db.query(movement_model.Movement)
         .options(joinedload(movement_model.Movement.product).joinedload(Product.category))
         .options(joinedload(movement_model.Movement.created_by))
+        .filter(movement_model.Movement.organization_id == organization_id)
         .order_by(movement_model.Movement.created_at.desc())
         .limit(limit)
         .all()
@@ -58,16 +62,18 @@ def list_recent_movements(db: Session, limit: int = 50) -> List[movement_model.M
 
 def filter_movements(
     db: Session,
+    organization_id: int,
     filters: movement_model.MovementFilter,
     *,
     limit: int | None = None,
     offset: int | None = None,
 ):
-    """Filter movements by date, type, and product."""
+    """Filter movements by date, type, and product for an organization."""
     query = (
         select(movement_model.Movement)
         .options(joinedload(movement_model.Movement.product).joinedload(Product.category))
         .options(joinedload(movement_model.Movement.created_by))
+        .filter(movement_model.Movement.organization_id == organization_id)
         .order_by(movement_model.Movement.created_at.desc())
     )
 
@@ -92,12 +98,15 @@ def filter_movements(
     return db.execute(query).scalars().all()
 
 
-def get_movement_by_id(db: Session, movement_id: int) -> movement_model.Movement | None:
-    """Return a movement by its identifier."""
+def get_movement_by_id(db: Session, movement_id: int, organization_id: int) -> movement_model.Movement | None:
+    """Return a movement by its identifier and organization."""
     return (
         db.query(movement_model.Movement)
         .options(joinedload(movement_model.Movement.product).joinedload(Product.category))
         .options(joinedload(movement_model.Movement.created_by))
-        .filter(movement_model.Movement.id == movement_id)
+        .filter(
+            movement_model.Movement.id == movement_id,
+            movement_model.Movement.organization_id == organization_id
+        )
         .first()
     )

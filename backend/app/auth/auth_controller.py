@@ -10,9 +10,34 @@ from app.database import get_db
 from app.security import create_access_token
 from app.users.user_model import User, UserPublic
 from . import auth_service
-from .auth_model import TokenResponse
+from .auth_model import TokenResponse, SignupRequest, SignupResponse
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+@router.post("/signup", response_model=SignupResponse, status_code=status.HTTP_201_CREATED)
+def signup(
+    signup_data: SignupRequest,
+    db: Session = Depends(get_db)
+) -> SignupResponse:
+    """
+    Public endpoint to create a new organization and its first user (Owner).
+    No authentication required.
+    """
+    user, organization, access_token = auth_service.signup_new_organization(
+        db=db,
+        organization_name=signup_data.organization_name,
+        user_full_name=signup_data.user_full_name,
+        user_email=signup_data.user_email,
+        user_password=signup_data.user_password
+    )
+    
+    return SignupResponse(
+        access_token=access_token,
+        token_type="bearer",
+        organization_name=organization.name,
+        user_email=user.email
+    )
 
 
 @router.post("/login", response_model=TokenResponse)

@@ -13,10 +13,29 @@ import { auditService } from '@/services/auditService';
 import type { AuditLog } from '@/types';
 import { FileText, Package, TrendingUp, Users } from 'lucide-react';
 import { TableSkeleton } from '@/components/TableSkeleton';
+import { EmptyState } from '@/components/EmptyState';
+
+import { usePermissions } from '@/hooks/usePermissions';
 
 export default function AuditPage() {
+    const { canView } = usePermissions();
     const [logs, setLogs] = useState<AuditLog[]>([]);
     const [loading, setLoading] = useState(true);
+
+    if (!canView('audit')) {
+        return (
+            <div className="flex flex-col items-center justify-center h-[60vh] text-center space-y-4">
+                <div className="p-4 bg-red-100 dark:bg-red-900/20 rounded-full">
+                    <FileText className="w-8 h-8 text-red-600 dark:text-red-400" />
+                </div>
+                <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Acesso Negado</h1>
+                <p className="text-slate-600 dark:text-slate-400 max-w-md">
+                    Você não tem permissão para visualizar os logs de auditoria.
+                    Entre em contato com o administrador se acreditar que isso é um erro.
+                </p>
+            </div>
+        );
+    }
 
     useEffect(() => {
         loadLogs();
@@ -126,8 +145,13 @@ export default function AuditPage() {
                         <TableBody>
                             {logs.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-8 text-slate-500">
-                                        Nenhum log de auditoria encontrado
+                                    <TableCell colSpan={5} className="p-0">
+                                        <EmptyState
+                                            icon={FileText}
+                                            title="Nenhum log de auditoria"
+                                            description="Ainda não há atividades registradas no sistema"
+                                            size="md"
+                                        />
                                     </TableCell>
                                 </TableRow>
                             ) : (

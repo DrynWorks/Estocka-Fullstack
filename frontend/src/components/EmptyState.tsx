@@ -11,6 +11,7 @@ interface EmptyStateProps {
         onClick: () => void;
     };
     variant?: 'default' | 'search' | 'error';
+    size?: 'sm' | 'md' | 'lg';
     className?: string;
 }
 
@@ -20,6 +21,7 @@ export function EmptyState({
     description,
     action,
     variant = 'default',
+    size = 'md',
     className
 }: EmptyStateProps) {
     const variantStyles = {
@@ -34,28 +36,56 @@ export function EmptyState({
         error: 'bg-red-50 dark:bg-red-950'
     };
 
+    const sizeStyles = {
+        sm: {
+            container: 'py-8 px-4',
+            iconWrapper: 'p-3 mb-3',
+            icon: 'w-6 h-6',
+            title: 'text-base mb-1',
+            description: 'text-sm mb-4'
+        },
+        md: {
+            container: 'py-16 px-4',
+            iconWrapper: 'p-6 mb-4',
+            icon: 'w-12 h-12',
+            title: 'text-xl mb-2',
+            description: 'text-base mb-6'
+        },
+        lg: {
+            container: 'py-24 px-4',
+            iconWrapper: 'p-8 mb-6',
+            icon: 'w-16 h-16',
+            title: 'text-2xl mb-3',
+            description: 'text-lg mb-8'
+        }
+    };
+
+    const currentSize = sizeStyles[size];
+
     return (
         <div className={cn(
-            'flex flex-col items-center justify-center py-16 px-4',
+            'flex flex-col items-center justify-center',
+            currentSize.container,
             className
         )}>
             <div className={cn(
-                'rounded-full p-6 mb-4',
+                'rounded-full',
+                currentSize.iconWrapper,
                 iconBgStyles[variant]
             )}>
-                <Icon className={cn('w-12 h-12', variantStyles[variant])} />
+                <Icon className={cn(currentSize.icon, variantStyles[variant])} />
             </div>
 
-            <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">
+            <h3 className={cn("font-semibold text-slate-900 dark:text-slate-100", currentSize.title)}>
                 {title}
             </h3>
 
-            <p className="text-slate-600 dark:text-slate-400 text-center max-w-sm mb-6">
+            <p className={cn("text-slate-600 dark:text-slate-400 text-center max-w-sm", currentSize.description)}>
                 {description}
             </p>
 
             {action && (
-                <Button onClick={action.onClick} className="gap-2">
+                <Button onClick={action.onClick} className="gap-2" size={size === 'sm' ? 'sm' : 'default'}>
                     {action.label}
                 </Button>
             )}

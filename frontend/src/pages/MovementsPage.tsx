@@ -53,13 +53,15 @@ import {
     PaginationPrevious,
 } from '@/components/ui/pagination';
 
+import { usePermissions } from '@/hooks/usePermissions';
+
 export default function MovementsPage() {
+    const { canCreate, canExport } = usePermissions();
     const [movements, setMovements] = useState<Movement[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [typeFilter, setTypeFilter] = useState<string>('all');
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage] = useState(25);
     const [loading, setLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -68,8 +70,10 @@ export default function MovementsPage() {
         type: 'entrada',
         quantity: 0,
         reason: '',
-        note: '',
+        note: ''
     });
+
+    const itemsPerPage = 10;
 
     useEffect(() => {
         loadData();
@@ -77,49 +81,43 @@ export default function MovementsPage() {
 
     const loadData = async () => {
         try {
+            setLoading(true);
             const [movementsData, productsData] = await Promise.all([
-                movementService.getAll(),
-                productService.getAll(),
+                movementService.getMovements(),
+                productService.getProducts()
             ]);
             setMovements(movementsData);
             setProducts(productsData);
         } catch (error) {
             console.error('Erro ao carregar dados:', error);
+            toast.error('Erro ao carregar dados');
         } finally {
             setLoading(false);
         }
     };
 
     const filteredMovements = movements.filter((m) => {
-        const matchesSearch = m.product.name
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase());
+        const matchesSearch = m.product.name.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesType = typeFilter === 'all' || m.type === typeFilter;
         return matchesSearch && matchesType;
     });
 
-    // Pagination
     const totalPages = Math.ceil(filteredMovements.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const paginatedMovements = filteredMovements.slice(startIndex, endIndex);
 
-    // Reset to page 1 when filters change
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchTerm, typeFilter]);
-
     const handleSave = async () => {
         try {
             setIsSaving(true);
-            await movementService.create(formData);
-            await loadData();
+            await movementService.createMovement(formData);
+            toast.success('Movimentação registrada com sucesso!');
             setDialogOpen(false);
             resetForm();
-            const typeLabel = formData.type === 'entrada' ? 'Entrada' : 'Saída';
-            toast.success(`${typeLabel} registrada com sucesso!`);
+            loadData();
         } catch (error: any) {
-            const message = error?.response?.data?.detail || 'Erro ao registrar movimentação';
+            console.error('Erro ao salvar movimentação:', error);
+            const message = error?.response?.data?.detail || 'Erro ao salvar movimentação';
             toast.error(message);
         } finally {
             setIsSaving(false);
@@ -132,17 +130,17 @@ export default function MovementsPage() {
             type: 'entrada',
             quantity: 0,
             reason: '',
-            note: '',
+            note: ''
         });
     };
 
     const handleExportPDF = () => {
-        const headers = ['Data/Hora', 'Produto', 'Tipo', 'Quantidade', 'Motivo', 'Usuário'];
+        const headers = ['Data', 'Produto', 'Tipo', 'Qtd', 'Motivo', 'Usuário'];
         const data = filteredMovements.map(m => [
             formatDateTime(m.created_at),
             m.product.name,
-            m.type,
-            formatNumber(m.quantity),
+            m.type === 'entrada' ? 'Entrada' : 'Saída',
+            m.quantity.toString(),
             m.reason || '-',
             m.created_by?.full_name || 'Sistema'
         ]);
@@ -152,10 +150,10 @@ export default function MovementsPage() {
 
     const handleExportCSV = () => {
         const data = filteredMovements.map(m => ({
-            'Data/Hora': formatDateTime(m.created_at),
+            'Data': formatDateTime(m.created_at),
             'Produto': m.product.name,
-            'Tipo': m.type,
-            'Quantidade': formatNumber(m.quantity),
+            'Tipo': m.type === 'entrada' ? 'Entrada' : 'Saída',
+            'Quantidade': m.quantity,
             'Motivo': m.reason || '-',
             'Usuário': m.created_by?.full_name || 'Sistema'
         }));
@@ -192,30 +190,34 @@ export default function MovementsPage() {
                     <p className="text-slate-600 dark:text-slate-400 mt-1">Registre entradas e saídas de estoque</p>
                 </div>
                 <div className="flex gap-2">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" className="gap-2">
-                                <Download className="w-4 h-4" />
-                                Exportar
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Formato de Exportação</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={handleExportPDF} className="gap-2 cursor-pointer">
-                                <FileText className="w-4 h-4" />
-                                PDF (Relatório)
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleExportCSV} className="gap-2 cursor-pointer">
-                                <FileSpreadsheet className="w-4 h-4" />
-                                CSV (Dados)
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                    <Button onClick={() => setDialogOpen(true)}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Nova Movimentação
-                    </Button>
+                    {canExport('movements') && (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" className="gap-2">
+                                    <Download className="w-4 h-4" />
+                                    Exportar
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Formato de Exportação</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={handleExportPDF} className="gap-2 cursor-pointer">
+                                    <FileText className="w-4 h-4" />
+                                    PDF (Relatório)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleExportCSV} className="gap-2 cursor-pointer">
+                                    <FileSpreadsheet className="w-4 h-4" />
+                                    CSV (Dados)
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    )}
+                    {canCreate('movements') && (
+                        <Button onClick={() => setDialogOpen(true)}>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Nova Movimentação
+                        </Button>
+                    )}
                 </div>
             </div>
 

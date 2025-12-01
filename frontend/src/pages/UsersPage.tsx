@@ -36,7 +36,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { userService, type User, type UserCreate, type UserUpdate } from '@/services/userService';
+import { userService, type User, type UserCreate } from '@/services/userService';
 import { roleService, type Role } from '@/services/roleService';
 import { exportToPDF, exportToCSV } from '@/utils/export';
 import {
@@ -47,109 +47,78 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { UserPlus, Pencil, Trash2, Users, Search, Download, FileText, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Download, FileText, FileSpreadsheet, Loader2, User as UserIcon } from 'lucide-react';
+import { toast } from 'sonner';
 import { EmptyState } from '@/components/EmptyState';
 import { TableSkeleton } from '@/components/TableSkeleton';
-import { Badge } from '@/components/ui/badge';
-import { toast } from 'sonner';
+import { usePermissions } from '@/hooks/usePermissions';
 
 export default function UsersPage() {
+    const { canCreate, canEdit, canDelete, canExport } = usePermissions();
     const [users, setUsers] = useState<User[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [roleFilter, setRoleFilter] = useState<string>('all');
     const [loading, setLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [userToDelete, setUserToDelete] = useState<User | null>(null);
     const [editingUser, setEditingUser] = useState<User | null>(null);
+    const [userToDelete, setUserToDelete] = useState<User | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+
     const [formData, setFormData] = useState<UserCreate>({
+        full_name: '',
         email: '',
         password: '',
-        full_name: '',
-        role_id: 2, // default to regular user
+        role_id: 0
     });
 
     useEffect(() => {
-        loadUsers();
-        loadRoles();
+        loadData();
     }, []);
 
-    const loadUsers = async () => {
+    const loadData = async () => {
         try {
             setLoading(true);
-            const data = await userService.getUsers();
-            setUsers(data);
+            const [usersData, rolesData] = await Promise.all([
+                userService.getUsers(),
+                roleService.getRoles()
+            ]);
+            setUsers(usersData);
+            setRoles(rolesData);
         } catch (error) {
-            console.error('Erro ao carregar usuários:', error);
+            console.error('Erro ao carregar dados:', error);
             toast.error('Erro ao carregar usuários');
         } finally {
             setLoading(false);
         }
     };
 
-    const loadRoles = async () => {
-        try {
-            const data = await roleService.getRoles();
-            setRoles(data);
-        } catch (error) {
-            console.error('Erro ao carregar roles:', error);
-        }
-    };
-
-    const filteredUsers = users.filter((u) => {
-        const matchesSearch =
-            u.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            u.email.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesRole = roleFilter === 'all' || u.role.name === roleFilter;
-        return matchesSearch && matchesRole;
-    });
-
-    const handleOpenDialog = (user?: User) => {
-        if (user) {
-            setEditingUser(user);
-            setFormData({
-                email: user.email,
-                password: '', // don't populate password when editing
-                full_name: user.full_name,
-                role_id: user.role.id,
-            });
-        } else {
-            setEditingUser(null);
-            setFormData({
-                email: '',
-                password: '',
-                full_name: '',
-                role_id: 2,
-            });
-        }
-        setDialogOpen(true);
-    };
-
     const handleSave = async () => {
         try {
-            setIsSaving(true);
-            if (editingUser) {
-                // Update user - only send fields that are filled
-                const updateData: UserUpdate = {
-                    email: formData.email,
-                    full_name: formData.full_name,
-                    role_id: formData.role_id,
-                };
-                if (formData.password) {
-                    updateData.password = formData.password;
-                }
-                await userService.updateUser(editingUser.id, updateData);
-                toast.success('Usuário atualizado com sucesso!');
-            } else {
-                // Create new user
-                await userService.createUser(formData);
-                toast.success('Usuário criado com sucesso!');
+            if (!formData.full_name || !formData.email || !formData.role_id) {
+                toast.error('Preencha todos os campos obrigatórios');
+                return;
             }
+
+            if (!editingUser && !formData.password) {
+                toast.error('Senha é obrigatória para novos usuários');
+                return;
+            }
+
+            setIsSaving(true);
+
+            if (editingUser) {
+                await userService.updateUser(editingUser.id, formData);
+                toast.success('Usuário atualizado com sucesso');
+            } else {
+                await userService.createUser(formData);
+                toast.success('Usuário criado com sucesso');
+            }
+
             setDialogOpen(false);
-            loadUsers();
+            resetForm();
+            loadData();
         } catch (error: any) {
             console.error('Erro ao salvar usuário:', error);
             const message = error?.response?.data?.detail || 'Erro ao salvar usuário';
@@ -159,49 +128,76 @@ export default function UsersPage() {
         }
     };
 
-    const openDeleteDialog = (user: User) => {
+    const handleEdit = (user: User) => {
+        setEditingUser(user);
+        setFormData({
+            full_name: user.full_name,
+            email: user.email,
+            password: '', // Password is not returned by API
+            role_id: user.role.id
+        });
+        setDialogOpen(true);
+    };
+
+    const handleDelete = (user: User) => {
         setUserToDelete(user);
         setDeleteDialogOpen(true);
     };
 
     const confirmDelete = async () => {
         if (!userToDelete) return;
+
         try {
             setIsDeleting(true);
             await userService.deleteUser(userToDelete.id);
-            toast.success(`Usuário "${userToDelete.full_name}" excluído com sucesso!`);
+            toast.success('Usuário excluído com sucesso');
             setDeleteDialogOpen(false);
-            setUserToDelete(null);
-            loadUsers();
+            loadData();
         } catch (error: any) {
-            console.error('Erro ao deletar usuário:', error);
+            console.error('Erro ao excluir usuário:', error);
             const message = error?.response?.data?.detail || 'Erro ao excluir usuário';
             toast.error(message);
         } finally {
             setIsDeleting(false);
+            setUserToDelete(null);
         }
+    };
+
+    const resetForm = () => {
+        setEditingUser(null);
+        setFormData({
+            full_name: '',
+            email: '',
+            password: '',
+            role_id: 0
+        });
     };
 
     const handleExportPDF = () => {
         const headers = ['Nome', 'Email', 'Função'];
-        const data = filteredUsers.map(u => [
-            u.full_name,
-            u.email,
-            u.role.name === 'admin' ? 'Administrador' : 'Usuário'
+        const data = filteredUsers.map(user => [
+            user.full_name,
+            user.email,
+            user.role.name
         ]);
         exportToPDF('Relatório de Usuários', headers, data, 'usuarios');
         toast.success('Relatório PDF exportado com sucesso!');
     };
 
     const handleExportCSV = () => {
-        const data = filteredUsers.map(u => ({
-            'Nome': u.full_name,
-            'Email': u.email,
-            'Função': u.role.name === 'admin' ? 'Administrador' : 'Usuário'
+        const data = filteredUsers.map(user => ({
+            'Nome': user.full_name,
+            'Email': user.email,
+            'Função': user.role.name
         }));
         exportToCSV(data, 'usuarios');
         toast.success('Relatório CSV exportado com sucesso!');
     };
+
+    const filteredUsers = users.filter(user =>
+        user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     if (loading) {
         return (
@@ -225,56 +221,52 @@ export default function UsersPage() {
     }
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
+        <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight dark:text-slate-100">Gerenciamento de Usuários</h1>
-                    <p className="text-muted-foreground dark:text-slate-400 mt-1">
-                        Gerencie usuários e permissões do sistema
-                    </p>
+                    <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Usuários</h1>
+                    <p className="text-slate-600 dark:text-slate-400 mt-1">Gerencie o acesso ao sistema</p>
                 </div>
-
                 <div className="flex gap-2">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" className="gap-2">
-                                <Download className="w-4 h-4" />
-                                Exportar
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Formato de Exportação</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={handleExportPDF} className="gap-2 cursor-pointer">
-                                <FileText className="w-4 h-4" />
-                                PDF (Relatório)
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleExportCSV} className="gap-2 cursor-pointer">
-                                <FileSpreadsheet className="w-4 h-4" />
-                                CSV (Dados)
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                    <Button onClick={() => handleOpenDialog()} className="gap-2">
-                        <UserPlus className="w-4 h-4" />
-                        Novo Usuário
-                    </Button>
+                    {canExport('users') && (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" className="gap-2">
+                                    <Download className="w-4 h-4" />
+                                    Exportar
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Formato de Exportação</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={handleExportPDF} className="gap-2 cursor-pointer">
+                                    <FileText className="w-4 h-4" />
+                                    PDF (Relatório)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleExportCSV} className="gap-2 cursor-pointer">
+                                    <FileSpreadsheet className="w-4 h-4" />
+                                    CSV (Dados)
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    )}
+                    {canCreate('users') && (
+                        <Button onClick={() => { resetForm(); setDialogOpen(true); }}>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Novo Usuário
+                        </Button>
+                    )}
                 </div>
-            </div >
+            </div>
 
-            {/* Users Table */}
-            < Card >
+            <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Users className="w-5 h-5" />
-                        Usuários Cadastrados
-                    </CardTitle>
+                    <CardTitle>Lista de Usuários</CardTitle>
                     <CardDescription>
-                        Total de {filteredUsers.length} usuários encontrados
+                        Total de {users.length} usuários cadastrados
                     </CardDescription>
                     <div className="flex items-center gap-4 mt-4">
-                        <div className="relative flex-1">
+                        <div className="relative flex-1 max-w-sm">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                             <Input
                                 placeholder="Buscar por nome ou email..."
@@ -283,16 +275,6 @@ export default function UsersPage() {
                                 className="pl-9"
                             />
                         </div>
-                        <Select value={roleFilter} onValueChange={setRoleFilter}>
-                            <SelectTrigger className="w-[200px]">
-                                <SelectValue placeholder="Função" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todas as funções</SelectItem>
-                                <SelectItem value="admin">Administrador</SelectItem>
-                                <SelectItem value="user">Usuário</SelectItem>
-                            </SelectContent>
-                        </Select>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -311,19 +293,19 @@ export default function UsersPage() {
                                     <TableCell colSpan={4} className="p-0">
                                         {users.length === 0 ? (
                                             <EmptyState
-                                                icon={Users}
+                                                icon={UserIcon}
                                                 title="Nenhum usuário cadastrado"
-                                                description="Adicione usuários para gerenciar acessos"
-                                                action={{
+                                                description="Comece adicionando usuários ao sistema"
+                                                action={canCreate('users') ? {
                                                     label: "Adicionar Usuário",
-                                                    onClick: () => handleOpenDialog()
-                                                }}
+                                                    onClick: () => { resetForm(); setDialogOpen(true); }
+                                                } : undefined}
                                             />
                                         ) : (
                                             <EmptyState
                                                 icon={Search}
                                                 title="Nenhum usuário encontrado"
-                                                description="Tente outro termo de busca ou função"
+                                                description="Tente buscar com outros termos"
                                                 variant="search"
                                             />
                                         )}
@@ -335,26 +317,33 @@ export default function UsersPage() {
                                         <TableCell className="font-medium">{user.full_name}</TableCell>
                                         <TableCell>{user.email}</TableCell>
                                         <TableCell>
-                                            <Badge variant={user.role.name === 'admin' ? 'default' : 'secondary'}>
+                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.role.name === 'admin'
+                                                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+                                                    : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
+                                                }`}>
                                                 {user.role.name === 'admin' ? 'Administrador' : 'Usuário'}
-                                            </Badge>
+                                            </span>
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex justify-end gap-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => handleOpenDialog(user)}
-                                                >
-                                                    <Pencil className="w-4 h-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => openDeleteDialog(user)}
-                                                >
-                                                    <Trash2 className="w-4 h-4 text-red-500" />
-                                                </Button>
+                                                {canEdit('users') && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handleEdit(user)}
+                                                    >
+                                                        <Pencil className="w-4 h-4 text-slate-500 hover:text-blue-600" />
+                                                    </Button>
+                                                )}
+                                                {canDelete('users') && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handleDelete(user)}
+                                                    >
+                                                        <Trash2 className="w-4 h-4 text-slate-500 hover:text-red-600" />
+                                                    </Button>
+                                                )}
                                             </div>
                                         </TableCell>
                                     </TableRow>
@@ -363,10 +352,10 @@ export default function UsersPage() {
                         </TableBody>
                     </Table>
                 </CardContent>
-            </Card >
+            </Card>
 
             {/* Create/Edit Dialog */}
-            < Dialog open={dialogOpen} onOpenChange={setDialogOpen} >
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>
@@ -429,7 +418,7 @@ export default function UsersPage() {
                                 }
                             >
                                 <SelectTrigger>
-                                    <SelectValue />
+                                    <SelectValue placeholder="Selecione uma função" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {roles.map((role) => (

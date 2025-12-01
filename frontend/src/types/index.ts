@@ -6,6 +6,7 @@ export interface User {
         id: number;
         name: string;
     };
+    organization_id: number;
 }
 
 export interface LoginCredentials {
@@ -26,7 +27,9 @@ export interface Product {
         id: number;
         name: string;
         description?: string;
+        organization_id: number;
     };
+    organization_id: number;
 }
 
 export interface Movement {
@@ -39,12 +42,14 @@ export interface Movement {
     created_at: string;
     product: Product;
     created_by?: User;
+    organization_id: number;
 }
 
 export interface Category {
     id: number;
     name: string;
     description?: string;
+    organization_id: number;
 }
 
 export interface AuditLog {
@@ -55,4 +60,5 @@ export interface AuditLog {
     entity_id: number | null;
     details: Record<string, any> | null;
     created_at: string;
+    organization_id: number;
 }

@@ -11,22 +11,42 @@ export interface MovementCreate {
 
 export const movementService = {
     async getAll(): Promise<Movement[]> {
-        const response = await api.get('/movements');
-        return response.data;
+        try {
+            const response = await api.get('/movements');
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching movements:', error);
+            throw error;
+        }
     },
 
     async getRecent(limit: number = 50): Promise<Movement[]> {
-        const response = await api.get(`/movements/recent?limit=${limit}`);
-        return response.data;
+        try {
+            const response = await api.get(`/movements/recent?limit=${limit}`);
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching recent movements:', error);
+            throw error;
+        }
     },
 
     async create(movement: MovementCreate): Promise<Movement> {
-        const response = await api.post('/movements', movement);
-        return response.data;
+        try {
+            const response = await api.post('/movements', movement);
+            return response.data;
+        } catch (error) {
+            console.error('Error creating movement:', error);
+            throw error;
+        }
     },
 
     async revert(id: number): Promise<Movement> {
-        const response = await api.post(`/movements/${id}/revert`);
-        return response.data;
+        try {
+            const response = await api.post(`/movements/${id}/revert`);
+            return response.data;
+        } catch (error) {
+            console.error(`Error reverting movement ${id}:`, error);
+            throw error;
+        }
     },
 };
