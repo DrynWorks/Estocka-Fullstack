@@ -36,6 +36,7 @@ def ensure_default_roles(session: Session | None = None) -> None:
     """Ensure default user roles exist."""
     managed_session = session or SessionLocal()
     try:
+        # Somente duas roles: admin e user
         default_roles = {"admin", "user"}
         existing_roles = set(
             managed_session.scalars(select(Role.name).where(Role.name.in_(default_roles)))
@@ -43,8 +44,15 @@ def ensure_default_roles(session: Session | None = None) -> None:
         missing_roles = default_roles - existing_roles
         if not missing_roles:
             return
+        
+        # Descrições das roles
+        role_descriptions = {
+            "admin": "Acesso total ao sistema",
+            "user": "Acesso operacional (estoque, vendas)"
+        }
+        
         for role_name in sorted(missing_roles):
-            managed_session.add(Role(name=role_name))
+            managed_session.add(Role(name=role_name, description=role_descriptions.get(role_name)))
         managed_session.commit()
     finally:
         if session is None:

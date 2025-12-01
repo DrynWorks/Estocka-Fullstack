@@ -32,18 +32,19 @@ def _to_product_summary(products: Iterable[Product]) -> List[report_model.Produc
     return [report_model.ProductSummary.model_validate(product) for product in products]
 
 
-def get_stock_overview(db: Session) -> report_model.StockOverview:
+def get_stock_overview(db: Session, organization_id: int) -> report_model.StockOverview:
     """
     Return consolidated stock metrics including total value and alert counts.
 
     Args:
         db: Database session.
+        organization_id: Organization scope.
 
     Returns:
         StockOverview: Object containing total products, total value, and lists of
         low stock and out-of-stock products.
     """
-    products = product_service.list_products(db)
+    products = product_service.list_products(db, organization_id=organization_id)
     total_products = len(products)
     total_value = sum(
         (product.quantity or 0) * Decimal(product.price or 0) for product in products
@@ -60,10 +61,10 @@ def get_stock_overview(db: Session) -> report_model.StockOverview:
     )
 
 
-def get_category_breakdown(db: Session) -> List[report_model.CategoryReportItem]:
+def get_category_breakdown(db: Session, organization_id: int) -> List[report_model.CategoryReportItem]:
     """Return quantity and value totals grouped by category."""
-    categories = category_service.list_categories(db)
-    aggregated = product_repository.get_products_by_category(db)
+    categories = category_service.list_categories(db, organization_id=organization_id)
+    aggregated = product_repository.get_products_by_category(db, organization_id=organization_id)
     totals_map = {
         row.category_id: {
             "total_quantity": int(row.total_quantity or 0),
@@ -85,14 +86,15 @@ def get_category_breakdown(db: Session) -> List[report_model.CategoryReportItem]
     return report_items
 
 
-def get_alerts_report(db: Session) -> report_model.AlertsReport:
+def get_alerts_report(db: Session, organization_id: int) -> report_model.AlertsReport:
     """Return the list of critical products."""
-    low_stock_products = product_service.get_low_stock_products(db)
+    low_stock_products = product_service.get_low_stock_products(db, organization_id=organization_id)
     return report_model.AlertsReport(critical_products=_to_product_summary(low_stock_products))
 
 
 def get_movement_history(
     db: Session,
+    organization_id: int,
     start_date: datetime | None = None,
     end_date: datetime | None = None,
     *,
@@ -103,7 +105,8 @@ def get_movement_history(
     filters = movement_model.MovementFilter(start_date=start_date, end_date=end_date)
     movements = movement_service.filter_movements(
         db,
-        filters,
+        organization_id=organization_id,
+        filters=filters,
         limit=limit,
         offset=offset,
     )
@@ -115,6 +118,7 @@ def get_movement_history(
 
 def get_abc_analysis(
     db: Session,
+    organization_id: int,
     start_date: datetime | None = None,
     end_date: datetime | None = None
 ) -> report_model.ABCReport:
@@ -143,6 +147,7 @@ def get_abc_analysis(
         func.sum(Movement.quantity).label("total_qty")
     ).where(
         Movement.type == MovementType.SAIDA,
+        Movement.organization_id == organization_id,
         Movement.created_at >= start_date
     )
 
@@ -154,7 +159,7 @@ def get_abc_analysis(
     ).all()
 
     product_consumption = {r.product_id: r.total_qty for r in results}
-    products = product_service.list_products(db)
+    products = product_service.list_products(db, organization_id=organization_id)
     
     abc_items = []
     total_value_all = 0.0
@@ -201,6 +206,7 @@ def get_abc_analysis(
 
 def get_xyz_analysis(
     db: Session,
+    organization_id: int,
     start_date: datetime | None = None,
     end_date: datetime | None = None
 ) -> report_model.XYZReport:
@@ -226,6 +232,7 @@ def get_xyz_analysis(
     
     query = select(Movement).where(
         Movement.type == MovementType.SAIDA,
+        Movement.organization_id == organization_id,
         Movement.created_at >= start_date
     )
 
@@ -250,7 +257,7 @@ def get_xyz_analysis(
     
     weeks_to_analyze = max(1, duration_days // 7)
 
-    products = product_service.list_products(db)
+    products = product_service.list_products(db, organization_id=organization_id)
     report_items = []
 
     for product in products:
@@ -285,6 +292,7 @@ def get_xyz_analysis(
 
 def get_stock_turnover(
     db: Session,
+    organization_id: int,
     start_date: datetime | None = None,
     end_date: datetime | None = None
 ) -> report_model.TurnoverReport:
@@ -301,6 +309,7 @@ def get_stock_turnover(
         func.sum(Movement.quantity).label("total_sold")
     ).where(
         Movement.type == MovementType.SAIDA,
+        Movement.organization_id == organization_id,
         Movement.created_at >= start_date
     )
 
@@ -312,7 +321,7 @@ def get_stock_turnover(
     ).all()
     sales_map = {r.product_id: r.total_sold for r in sales_results}
 
-    products = product_service.list_products(db)
+    products = product_service.list_products(db, organization_id=organization_id)
     report_items = []
 
     for product in products:
@@ -338,11 +347,12 @@ def get_stock_turnover(
 
 def get_financial_report(
     db: Session,
+    organization_id: int,
     start_date: datetime | None = None,
     end_date: datetime | None = None
 ) -> report_model.FinancialReport:
     """Calculate financial metrics: Holding Cost, Potential Profit, Margins."""
-    products = product_service.list_products(db)
+    products = product_service.list_products(db, organization_id=organization_id)
     
     total_inventory_value = 0.0
     total_cost_value = 0.0
@@ -368,6 +378,7 @@ def get_financial_report(
 
 def get_forecast_report(
     db: Session,
+    organization_id: int,
     start_date: datetime | None = None,
     end_date: datetime | None = None
 ) -> report_model.ForecastReport:
@@ -393,6 +404,7 @@ def get_forecast_report(
         func.sum(Movement.quantity).label("total_used")
     ).where(
         Movement.type == MovementType.SAIDA,
+        Movement.organization_id == organization_id,
         Movement.created_at >= start_date
     )
 
@@ -404,7 +416,7 @@ def get_forecast_report(
     ).all()
     usage_map = {r.product_id: r.total_used for r in usage_results}
 
-    products = product_service.list_products(db)
+    products = product_service.list_products(db, organization_id=organization_id)
     report_items = []
 
     for product in products:

@@ -40,9 +40,12 @@ def create_user(
     response_model=List[user_model.UserPublic],
     dependencies=[Depends(require_role("admin"))],
 )
-def read_users(db: Session = Depends(get_db)):
-    """List every user (admin only)."""
-    return user_service.get_all_users(db)
+def read_users(
+    db: Session = Depends(get_db),
+    current_user: user_model.User = Depends(get_current_user)
+):
+    """List users from current organization (admin only)."""
+    return user_service.get_all_users(db, organization_id=current_user.organization_id)
 
 
 @router.get(

@@ -42,7 +42,14 @@ def create_movement(
         HTTPException(404): If the product is not found.
         HTTPException(400): If insufficient stock for outbound movement.
     """
-    transaction_ctx = db.begin() if manage_transaction else nullcontext()
+    if manage_transaction:
+        # Avoid starting a nested transaction when one is already active
+        if db.in_transaction():
+            transaction_ctx = db.begin_nested()
+        else:
+            transaction_ctx = db.begin()
+    else:
+        transaction_ctx = nullcontext()
     with transaction_ctx:
         product = product_repository.get_product_by_id(db, product_id=movement.product_id, organization_id=organization_id)
         if product is None:
@@ -79,7 +86,8 @@ def create_movement(
                 "product_id": movement.product_id,
                 "quantity": movement.quantity,
                 "reason": movement.reason
-            }
+            },
+            organization_id=organization_id,
         )
 
     db.refresh(product)

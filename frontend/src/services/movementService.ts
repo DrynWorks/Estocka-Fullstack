@@ -20,6 +20,11 @@ export const movementService = {
         }
     },
 
+    // Alias para compatibilidade com páginas
+    async getMovements(): Promise<Movement[]> {
+        return this.getAll();
+    },
+
     async getRecent(limit: number = 50): Promise<Movement[]> {
         try {
             const response = await api.get(`/movements/recent?limit=${limit}`);
@@ -38,6 +43,11 @@ export const movementService = {
             console.error('Error creating movement:', error);
             throw error;
         }
+    },
+
+    // Alias para compatibilidade com páginas
+    async createMovement(movement: MovementCreate): Promise<Movement> {
+        return this.create(movement);
     },
 
     async revert(id: number): Promise<Movement> {

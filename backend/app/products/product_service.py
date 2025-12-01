@@ -53,7 +53,8 @@ def create_product(
         action=ActionType.CREATE,
         entity_type=EntityType.PRODUCT,
         entity_id=created_product.id,
-        details={"name": created_product.name, "sku": created_product.sku}
+        details={"name": created_product.name, "sku": created_product.sku},
+        organization_id=organization_id,
     )
     
     return created_product
@@ -98,10 +99,11 @@ def search_products(
     db: Session,
     organization_id: int,
     *,
-    name: str | None = None,
-    sku: str | None = None,
+    search: str | None = None,
     category_id: int | None = None,
-    low_stock_only: bool = False,
+    stock_status: str | None = None,  # "out" | "low" | "ok"
+    price_min: float | None = None,
+    price_max: float | None = None,
 ) -> list[product_model.Product]:
     """
     Search for products based on various filters.
@@ -117,14 +119,17 @@ def search_products(
     Returns:
         A list of Product ORM instances matching the criteria.
     """
-    return product_repository.search_products(
-        db,
+    from .product_filters import build_product_filters
+
+    stmt = build_product_filters(
         organization_id=organization_id,
-        name=name,
-        sku=sku,
+        stock_status=stock_status,
+        price_min=price_min,
+        price_max=price_max,
         category_id=category_id,
-        low_stock_only=low_stock_only,
+        search=search,
     )
+    return db.scalars(stmt).all()
 
 
 def update_product(

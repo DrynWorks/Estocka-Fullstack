@@ -22,7 +22,7 @@ router = APIRouter(
     "/",
     response_model=category_model.CategoryPublic,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role("admin"))],
+    dependencies=[Depends(require_role("admin", "user"))],
 )
 def create_category(
     category: category_model.CategoryCreate,
@@ -55,7 +55,7 @@ def get_category(
 @router.put(
     "/{category_id}",
     response_model=category_model.CategoryPublic,
-    dependencies=[Depends(require_role("admin"))],
+    dependencies=[Depends(require_role("admin", "user"))],
 )
 def update_category(
     category_id: int,
@@ -75,7 +75,7 @@ def update_category(
 @router.delete(
     "/{category_id}",
     response_model=category_model.CategoryPublic,
-    dependencies=[Depends(require_role("admin"))],
+    dependencies=[Depends(require_role("admin", "user"))],
 )
 def delete_category(
     category_id: int,

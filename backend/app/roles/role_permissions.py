@@ -5,23 +5,25 @@ from enum import Enum
 
 class RoleType(str, Enum):
     """
-    User role types with different permission levels.
+    User role types (simplified).
     
-    Hierarchy (most to least powerful):
-    OWNER > ADMIN > MANAGER > OPERATOR > VIEWER
+    Only two effective roles:
+    - admin: controle total
+    - user: operações do dia a dia (estoque/vendas)
+    
+    Aliases legacy: owner -> admin, collaborator -> user.
     """
     
-    OWNER = "owner"          # Full control, can delete org, manage billing
-    ADMIN = "admin"          # Can manage users, products, all features except org deletion
-    MANAGER = "manager"      # Can manage products, categories, view reports
-    OPERATOR = "operator"    # Can create/edit products and movements, basic operations
-    VIEWER = "viewer"        # Read-only access to products, reports
+    ADMIN = "admin"
+    USER = "user"
+    COLLABORATOR = "collaborator"  # alias of USER (compat)
+    OWNER = "owner"                # alias of ADMIN (compat)
 
 
 # Permission sets for each role
 ROLE_PERMISSIONS = {
-    RoleType.OWNER: {
-        # Full access to everything
+    # Admin: full access
+    RoleType.ADMIN: {
         "organization.view",
         "organization.edit",
         "organization.delete",
@@ -48,73 +50,25 @@ ROLE_PERMISSIONS = {
         "audit.view",
     },
     
-    RoleType.ADMIN: {
-        # Everything except org deletion
-        "organization.view",
-        "organization.edit",
-        "users.view",
-        "users.create",
-        "users.edit",
-        "users.delete",
-        "users.manage_roles",
-        "products.view",
-        "products.create",
-        "products.edit",
-        "products.delete",
-        "products.export",
-        "categories.view",
-        "categories.create",
-        "categories.edit",
-        "categories.delete",
-        "movements.view",
-        "movements.create",
-        "movements.edit",
-        "movements.delete",
-        "reports.view",
-        "reports.export",
-        "audit.view",
-    },
-    
-    RoleType.MANAGER: {
-        # Can manage inventory and view analytics
+    # User: operações do dia a dia (sem gestão de usuários/roles)
+    RoleType.USER: {
         "organization.view",
         "products.view",
         "products.create",
         "products.edit",
-        "products.delete",
         "products.export",
         "categories.view",
         "categories.create",
         "categories.edit",
-        "categories.delete",
         "movements.view",
         "movements.create",
-        "movements.edit",
-        "reports.view",
-        "reports.export",
-        "users.view",
-    },
-    
-    RoleType.OPERATOR: {
-        # Basic operations - create and move products
-        "products.view",
-        "products.create",
-        "products.edit",
-        "categories.view",
-        "movements.view",
-        "movements.create",
-        "movements.edit",
-        "reports.view",
-    },
-    
-    RoleType.VIEWER: {
-        # Read-only
-        "products.view",
-        "categories.view",
-        "movements.view",
         "reports.view",
     },
 }
+
+# Aliases de compatibilidade
+ROLE_PERMISSIONS[RoleType.COLLABORATOR] = ROLE_PERMISSIONS[RoleType.USER]
+ROLE_PERMISSIONS[RoleType.OWNER] = ROLE_PERMISSIONS[RoleType.ADMIN]
 
 
 def has_permission(role: RoleType, permission: str) -> bool:

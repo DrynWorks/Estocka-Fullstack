@@ -6,12 +6,12 @@
 
 import { useAuth } from '../contexts/AuthContext';
 
-// Role hierarchy (from most to least powerful)
-export type RoleType = 'owner' | 'admin' | 'manager' | 'operator' | 'viewer';
+// Papel simplificado: admin e user (collaborator como alias compatível)
+export type RoleType = 'admin' | 'user' | 'collaborator' | 'owner';
 
-// Permission mapping (matches backend)
+// Permissões devem espelhar o backend
 const ROLE_PERMISSIONS: Record<RoleType, Set<string>> = {
-    owner: new Set([
+    admin: new Set([
         'organization.view', 'organization.edit', 'organization.delete',
         'users.view', 'users.create', 'users.edit', 'users.delete', 'users.manage_roles',
         'products.view', 'products.create', 'products.edit', 'products.delete', 'products.export',
@@ -21,37 +21,32 @@ const ROLE_PERMISSIONS: Record<RoleType, Set<string>> = {
         'audit.view',
     ]),
 
-    admin: new Set([
-        'organization.view', 'organization.edit',
+    // user = colaborador operacional
+    user: new Set([
+        'organization.view',
+        'products.view', 'products.create', 'products.edit', 'products.export',
+        'categories.view', 'categories.create', 'categories.edit',
+        'movements.view', 'movements.create',
+        'reports.view',
+    ]),
+
+    // aliases de compatibilidade
+    collaborator: new Set([
+        'organization.view',
+        'products.view', 'products.create', 'products.edit', 'products.export',
+        'categories.view', 'categories.create', 'categories.edit',
+        'movements.view', 'movements.create',
+        'reports.view',
+    ]),
+
+    owner: new Set([
+        'organization.view', 'organization.edit', 'organization.delete',
         'users.view', 'users.create', 'users.edit', 'users.delete', 'users.manage_roles',
         'products.view', 'products.create', 'products.edit', 'products.delete', 'products.export',
         'categories.view', 'categories.create', 'categories.edit', 'categories.delete',
         'movements.view', 'movements.create', 'movements.edit', 'movements.delete',
         'reports.view', 'reports.export',
         'audit.view',
-    ]),
-
-    manager: new Set([
-        'organization.view',
-        'users.view',
-        'products.view', 'products.create', 'products.edit', 'products.delete', 'products.export',
-        'categories.view', 'categories.create', 'categories.edit', 'categories.delete',
-        'movements.view', 'movements.create', 'movements.edit',
-        'reports.view', 'reports.export',
-    ]),
-
-    operator: new Set([
-        'products.view', 'products.create', 'products.edit',
-        'categories.view',
-        'movements.view', 'movements.create', 'movements.edit',
-        'reports.view',
-    ]),
-
-    viewer: new Set([
-        'products.view',
-        'categories.view',
-        'movements.view',
-        'reports.view',
     ]),
 };
 
@@ -127,16 +122,8 @@ export function usePermissions() {
     /**
      * Check if user is admin or owner.
      */
-    const isAdmin = (): boolean => {
-        return userRole === 'admin' || userRole === 'owner';
-    };
-
-    /**
-     * Check if user is owner only.
-     */
-    const isOwner = (): boolean => {
-        return userRole === 'owner';
-    };
+    const isAdmin = (): boolean => userRole === 'admin' || userRole === 'owner';
+    const isOwner = (): boolean => userRole === 'admin' || userRole === 'owner';
 
     return {
         // Current user's role

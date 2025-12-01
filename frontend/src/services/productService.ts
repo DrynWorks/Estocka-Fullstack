@@ -12,6 +12,11 @@ export const productService = {
         }
     },
 
+    // Alias para compatibilidade com páginas
+    async getProducts(): Promise<Product[]> {
+        return this.getAll();
+    },
+
     async getById(id: number): Promise<Product> {
         try {
             const response = await api.get(`/products/${id}`);

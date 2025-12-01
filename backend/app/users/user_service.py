@@ -34,9 +34,9 @@ def create_new_user(db: Session, user: user_model.UserCreate):
     return user_repository.create_user(db=db, user=user_data, role_id=user.role_id)
 
 
-def get_all_users(db: Session):
-    """Return all users without filters."""
-    return user_repository.get_users(db)
+def get_all_users(db: Session, organization_id: int):
+    """Return every user from the current organization."""
+    return user_repository.get_users_by_organization(db, organization_id)
 
 
 def get_user_by_id(db: Session, user_id: int):

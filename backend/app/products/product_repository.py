@@ -74,8 +74,10 @@ def create_product(db: Session, product: product_model.ProductCreate, organizati
         name=product.name,
         sku=product.sku,
         price=product.price,
+        cost_price=product.cost_price,
         quantity=product.quantity,
         alert_level=product.alert_level,
+        lead_time=product.lead_time,
         category_id=product.category_id,
         organization_id=organization_id,
     )

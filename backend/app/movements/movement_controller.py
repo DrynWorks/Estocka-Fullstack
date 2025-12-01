@@ -28,7 +28,7 @@ router = APIRouter(
 def create_movement(
     movement: movement_model.MovementCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin")),
+    current_user: User = Depends(require_role("admin", "user")),
 ):
     """Register a stock movement (admin only)."""
     return movement_service.create_movement(
@@ -47,7 +47,7 @@ def create_movement(
 def revert_movement(
     movement_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin")),
+    current_user: User = Depends(require_role("admin", "user")),
 ):
     """Generate the reverse movement for the provided identifier (admin only)."""
     return movement_service.revert_movement(

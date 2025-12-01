@@ -318,10 +318,10 @@ export default function UsersPage() {
                                         <TableCell>{user.email}</TableCell>
                                         <TableCell>
                                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.role.name === 'admin'
-                                                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-                                                    : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
+                                                ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+                                                : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                                                 }`}>
-                                                {user.role.name === 'admin' ? 'Administrador' : 'Usuário'}
+                                                {user.role.name === 'admin' ? 'Administrador' : 'Colaborador'}
                                             </span>
                                         </TableCell>
                                         <TableCell className="text-right">
@@ -423,7 +423,7 @@ export default function UsersPage() {
                                 <SelectContent>
                                     {roles.map((role) => (
                                         <SelectItem key={role.id} value={role.id.toString()}>
-                                            {role.name === 'admin' ? 'Administrador' : 'Usuário'}
+                                            {role.name === 'admin' ? 'Administrador' : 'Colaborador'}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

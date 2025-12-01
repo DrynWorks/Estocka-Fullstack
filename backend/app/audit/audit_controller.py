@@ -40,4 +40,10 @@ def get_audit_logs(
         start_date=start_date,
         end_date=end_date
     )
-    return audit_service.get_audit_logs(db, filters, limit, offset)
+    return audit_service.get_audit_logs(
+        db,
+        filters,
+        organization_id=current_user.organization_id,
+        limit=limit,
+        offset=offset,
+    )

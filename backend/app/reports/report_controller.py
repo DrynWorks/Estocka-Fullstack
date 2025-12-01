@@ -10,12 +10,13 @@ from sqlalchemy.orm import Session
 
 from app.auth.auth_service import get_current_user, require_role
 from app.database import get_db
+from app.users.user_model import User
 from . import report_model, report_service
 
 router = APIRouter(
     prefix="/reports",
     tags=["Reports"],
-    dependencies=[Depends(get_current_user), Depends(require_role("admin"))],
+    dependencies=[Depends(get_current_user), Depends(require_role("admin", "user"))],
 )
 
 
@@ -56,39 +57,49 @@ def get_date_range(
     return start, end
 
 @router.get("/overview", response_model=report_model.StockOverview)
-def get_overview_report(db: Session = Depends(get_db)):
+def get_overview_report(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Return the stock overview report."""
-    return report_service.get_stock_overview(db)
+    return report_service.get_stock_overview(db, organization_id=current_user.organization_id)
 
 
 @router.get("/categories", response_model=List[report_model.CategoryReportItem])
-def get_category_report(db: Session = Depends(get_db)):
+def get_category_report(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Return totals grouped by category."""
-    return report_service.get_category_breakdown(db)
+    return report_service.get_category_breakdown(db, organization_id=current_user.organization_id)
 
 
 @router.get("/alerts", response_model=report_model.AlertsReport)
-def get_alerts_report(db: Session = Depends(get_db)):
+def get_alerts_report(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Return critical stock alerts."""
-    return report_service.get_alerts_report(db)
+    return report_service.get_alerts_report(db, organization_id=current_user.organization_id)
 
 
 @router.get("/movements", response_model=report_model.MovementReport)
 def get_movement_report(
+    period: str | None = Query(default=None),
     start_date: datetime | None = Query(default=None),
     end_date: datetime | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=500, description="Number of records to return"),
     offset: int = Query(default=0, ge=0, description="Number of records to skip"),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Return movement history within the requested window."""
     start, end = get_date_range(period, start_date, end_date)
     return report_service.get_movement_history(
         db,
-        product_id=product_id,
         start_date=start,
         end_date=end,
-        movement_type=movement_type,
+        organization_id=current_user.organization_id,
         limit=limit,
         offset=offset,
     )
@@ -131,11 +142,12 @@ def get_abc_report(
     period: str | None = Query(default=None),
     start_date: str | None = Query(default=None),
     end_date: str | None = Query(default=None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Return ABC analysis (Pareto principle) for products."""
     start, end = get_date_range(period, start_date, end_date)
-    return report_service.get_abc_analysis(db, start_date=start, end_date=end)
+    return report_service.get_abc_analysis(db, organization_id=current_user.organization_id, start_date=start, end_date=end)
 
 
 @router.get("/xyz", response_model=report_model.XYZReport)
@@ -143,11 +155,12 @@ def get_xyz_report(
     period: str | None = Query(default=None),
     start_date: str | None = Query(default=None),
     end_date: str | None = Query(default=None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Return XYZ analysis (demand variability) for products."""
     start, end = get_date_range(period, start_date, end_date)
-    return report_service.get_xyz_analysis(db, start_date=start, end_date=end)
+    return report_service.get_xyz_analysis(db, organization_id=current_user.organization_id, start_date=start, end_date=end)
 
 
 @router.get("/turnover", response_model=report_model.TurnoverReport)
@@ -155,11 +168,12 @@ def get_turnover_report(
     period: str | None = Query(default=None),
     start_date: str | None = Query(default=None),
     end_date: str | None = Query(default=None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Return stock turnover rates."""
     start, end = get_date_range(period, start_date, end_date)
-    return report_service.get_stock_turnover(db, start_date=start, end_date=end)
+    return report_service.get_stock_turnover(db, organization_id=current_user.organization_id, start_date=start, end_date=end)
 
 
 @router.get("/financial", response_model=report_model.FinancialReport)
@@ -167,11 +181,12 @@ def get_financial_report(
     period: str | None = Query(default=None),
     start_date: str | None = Query(default=None),
     end_date: str | None = Query(default=None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Return financial metrics (holding cost, margins)."""
     start, end = get_date_range(period, start_date, end_date)
-    return report_service.get_financial_report(db, start_date=start, end_date=end)
+    return report_service.get_financial_report(db, organization_id=current_user.organization_id, start_date=start, end_date=end)
 
 
 @router.get("/forecast", response_model=report_model.ForecastReport)
@@ -179,8 +194,9 @@ def get_forecast_report(
     period: str | None = Query(default=None),
     start_date: str | None = Query(default=None),
     end_date: str | None = Query(default=None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Return stock forecast (reorder points, stockout risk)."""
     start, end = get_date_range(period, start_date, end_date)
-    return report_service.get_forecast_report(db, start_date=start, end_date=end)
+    return report_service.get_forecast_report(db, organization_id=current_user.organization_id, start_date=start, end_date=end)

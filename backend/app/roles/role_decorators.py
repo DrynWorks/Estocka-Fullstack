@@ -52,12 +52,12 @@ def require_role(*allowed_roles: str):
     
     Usage:
         @router.post("/users")
-        @require_role("owner", "admin")
+        @require_role("admin")
         def create_user(data: UserCreate, current_user: User = Depends(get_current_user)):
             ...
     
     Args:
-        allowed_roles: One or more role names (e.g., "admin", "owner")
+        allowed_roles: One or more role names (e.g., "admin", "collaborator")
     
     Raises:
         HTTPException 403 if user doesn't have required role

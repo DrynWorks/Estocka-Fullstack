@@ -40,6 +40,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const formData = new FormData();
         formData.append('username', credentials.username);
         formData.append('password', credentials.password);
+        // Required by OAuth2PasswordRequestForm
+        formData.append('grant_type', 'password');
 
         const response = await api.post('/auth/login', formData);
         const { access_token } = response.data;

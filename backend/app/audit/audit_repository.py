@@ -33,14 +33,15 @@ def create_audit_log(
         organization_id=organization_id,
     )
     db.add(db_log)
-    db.commit()
-    db.refresh(db_log)
+    # Commit/refresh must be handled by caller transaction to avoid closing context.
+    db.flush()
     return db_log
 
 
 def list_audit_logs(
     db: Session,
     filters: audit_model.AuditLogFilter,
+    organization_id: int,
     limit: int = 50,
     offset: int = 0
 ) -> list[audit_model.AuditLog]:
@@ -50,13 +51,18 @@ def list_audit_logs(
     Args:
         db: Database session.
         filters: Filter criteria.
+        organization_id: Organization scope filter.
         limit: Maximum number of results.
         offset: Pagination offset.
 
     Returns:
         List of AuditLog ORM instances.
     """
-    query = select(audit_model.AuditLog).order_by(desc(audit_model.AuditLog.created_at))
+    query = (
+        select(audit_model.AuditLog)
+        .where(audit_model.AuditLog.organization_id == organization_id)
+        .order_by(desc(audit_model.AuditLog.created_at))
+    )
 
     if filters.user_id is not None:
         query = query.where(audit_model.AuditLog.user_id == filters.user_id)

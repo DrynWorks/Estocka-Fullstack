@@ -11,11 +11,11 @@ class TokenResponse(BaseModel):
 
 
 class SignupRequest(BaseModel):
-    """Schema for organization and owner registration."""
+    """Schema for organization and admin registration."""
     organization_name: str = Field(min_length=3, max_length=255, description="Company/Organization name")
-    user_full_name: str = Field(min_length=3, max_length=255, description="Owner's full name")
-    user_email: EmailStr = Field(description="Owner's email")
-    user_password: str = Field(min_length=8, description="Owner's password")
+    user_full_name: str = Field(min_length=3, max_length=255, description="Admin's full name")
+    user_email: EmailStr = Field(description="Admin's email")
+    user_password: str = Field(min_length=8, description="Admin's password")
 
 
 class SignupResponse(BaseModel):

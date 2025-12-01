@@ -23,7 +23,7 @@ router = APIRouter(
     "/",
     response_model=product_model.ProductPublic,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role("admin"))],
+    dependencies=[Depends(require_role("admin", "user"))],
 )
 def create_product(
     product: product_model.ProductCreate,
@@ -73,19 +73,14 @@ def search_products(
         /products/search?price_min=10&price_max=100
         /products/search?search=coca&stock_status=ok
     """
-    from .product_filters import build_product_filters
-    
-    # NOTE: We are now using service layer for search which uses repository filtering.
-    # The previous implementation used direct DB query with build_product_filters.
-    # We should switch to service layer to maintain consistency and security.
-    
     return product_service.search_products(
         db,
         organization_id=current_user.organization_id,
-        name=search,
-        sku=search, # search param applies to both name and sku in service
+        search=search,
         category_id=category_id,
-        low_stock_only=(stock_status == "low" or stock_status == "out") # Mapping approximation
+        stock_status=stock_status,
+        price_min=price_min,
+        price_max=price_max,
     )
     # Wait, the service search is less capable than the previous direct query (price range missing).
     # I should update the service to support all filters or keep using build_product_filters BUT ensuring org_id.
@@ -127,7 +122,7 @@ def get_product(
 @router.put(
     "/{product_id}",
     response_model=product_model.ProductPublic,
-    dependencies=[Depends(require_role("admin"))],
+    dependencies=[Depends(require_role("admin", "user"))],
 )
 def update_product(
     product_id: int,
@@ -148,7 +143,7 @@ def update_product(
 @router.delete(
     "/{product_id}",
     response_model=product_model.ProductPublic,
-    dependencies=[Depends(require_role("admin"))],
+    dependencies=[Depends(require_role("admin", "user"))],
 )
 def delete_product(
     product_id: int,

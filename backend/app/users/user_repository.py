@@ -18,9 +18,11 @@ def get_user_by_email(db: Session, email: str):
     return db.query(user_model.User).filter(user_model.User.email == email).first()
 
 
-def get_users(db: Session):
-    """List all users."""
-    return db.query(user_model.User).all()
+def get_users_by_organization(db: Session, organization_id: int):
+    """List users from a specific organization."""
+    return db.query(user_model.User).filter(
+        user_model.User.organization_id == organization_id
+    ).all()
 
 
 def create_user(

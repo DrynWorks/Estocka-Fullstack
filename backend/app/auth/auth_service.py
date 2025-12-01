@@ -35,7 +35,7 @@ def signup_new_organization(
     user_password: str
 ):
     """
-    Create a new organization and its first user (Owner).
+    Create a new organization and its first user (Admin).
     Returns (user, organization, access_token)
     """
     # Import here to avoid circular imports
@@ -72,29 +72,29 @@ def signup_new_organization(
     db.add(organization)
     db.flush()  # Get organization.id
     
-    # 4. Ensure "owner" role exists
-    owner_role = db.execute(
-        select(Role).where(Role.name == "owner")
+    # 4. Ensure "admin" role exists
+    admin_role = db.execute(
+        select(Role).where(Role.name == "admin")
     ).scalar_one_or_none()
     
-    if not owner_role:
-        owner_role = Role(name="owner")
-        db.add(owner_role)
+    if not admin_role:
+        admin_role = Role(name="admin")
+        db.add(admin_role)
         db.flush()
     
-    # 5. Create owner user
+    # 5. Create admin user
     user_data = UserCreate(
         email=user_email,
         password=user_password,
         full_name=user_full_name,
-        role_id=owner_role.id,
+        role_id=admin_role.id,
         organization_id=organization.id
     )
     
     user = user_repository.create_user(
         db=db,
         user=user_data,
-        role_id=owner_role.id,
+        role_id=admin_role.id,
         commit=False
     )
     
@@ -136,11 +136,11 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     return user
 
 
-def require_role(required_role_name: str) -> Callable[[User], User]:
-    """Ensure the current user has the expected role before proceeding."""
+def require_role(*allowed_roles: str) -> Callable[[User], User]:
+    """Ensure the current user has one of the expected roles before proceeding."""
 
     def role_checker(current_user: User = Depends(get_current_user)) -> User:
-        if not current_user.role or current_user.role.name != required_role_name:
+        if not current_user.role or current_user.role.name not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Operation not permitted for this user role",

@@ -56,25 +56,181 @@ import { usePermissions } from '@/hooks/usePermissions';
 export default function ProductsPage() {
     const { canCreate, canEdit, canDelete, canExport } = usePermissions();
     const [products, setProducts] = useState<Product[]>([]);
-    // ... existing state ...
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [loading, setLoading] = useState<boolean>(true);
+    const [dialogOpen, setDialogOpen] = useState<boolean>(false);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
+    const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+    const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+    const [search, setSearch] = useState<string>('');
+    const [categoryFilter, setCategoryFilter] = useState<string>('all');
+    const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out' | 'ok'>('all');
+    const [formData, setFormData] = useState({
+        name: '',
+        sku: '',
+        price: '',
+        cost_price: '',
+        quantity: '',
+        alert_level: '',
+        lead_time: '',
+        category_id: '',
+    });
 
-    // ... existing useEffect and loadData ...
+    const loadData = async () => {
+        setLoading(true);
+        try {
+            const [cats, prods] = await Promise.all([
+                categoryService.getAll(),
+                productService.getAll(),
+            ]);
+            setCategories(cats);
+            setProducts(prods);
+        } catch (error) {
+            console.error('Erro ao carregar dados', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-    // ... existing filteredProducts ...
+    useEffect(() => {
+        loadData();
+    }, []);
 
-    // ... existing handleSave ...
+    const resetForm = () => {
+        setFormData({
+            name: '',
+            sku: '',
+            price: '',
+            cost_price: '',
+            quantity: '',
+            alert_level: '',
+            lead_time: '',
+            category_id: '',
+        });
+        setEditingProduct(null);
+    };
 
-    // ... existing openDeleteDialog ...
+    const openDialog = (product?: Product) => {
+        if (product) {
+            setEditingProduct(product);
+            setFormData({
+                name: product.name,
+                sku: product.sku,
+                price: product.price.toString(),
+                cost_price: product.cost_price.toString(),
+                quantity: product.quantity.toString(),
+                alert_level: product.alert_level.toString(),
+                lead_time: product.lead_time.toString(),
+                category_id: product.category.id.toString(),
+            });
+        } else {
+            resetForm();
+        }
+        setDialogOpen(true);
+    };
 
-    // ... existing confirmDelete ...
+    const handleSave = async () => {
+        const payload: any = {
+            name: formData.name,
+            sku: formData.sku,
+            price: Number(formData.price),
+            cost_price: Number(formData.cost_price),
+            quantity: Number(formData.quantity),
+            alert_level: Number(formData.alert_level),
+            lead_time: Number(formData.lead_time),
+            category_id: Number(formData.category_id),
+        };
 
-    // ... existing handleExportPDF and handleExportCSV ...
+        try {
+            if (editingProduct) {
+                await productService.update(editingProduct.id, payload);
+            } else {
+                await productService.create(payload as any);
+            }
+            await loadData();
+            setDialogOpen(false);
+            resetForm();
+        } catch (error) {
+            console.error('Erro ao salvar produto', error);
+        }
+    };
 
-    // ... existing openDialog ...
+    const openDeleteDialog = (product: Product) => {
+        setProductToDelete(product);
+        setDeleteDialogOpen(true);
+    };
 
-    // ... existing resetForm ...
+    const confirmDelete = async () => {
+        if (!productToDelete) return;
+        try {
+            await productService.delete(productToDelete.id);
+            await loadData();
+        } catch (error) {
+            console.error('Erro ao excluir produto', error);
+        } finally {
+            setDeleteDialogOpen(false);
+            setProductToDelete(null);
+        }
+    };
 
-    // ... existing getStockStatus ...
+    const filteredProducts = products.filter((p) => {
+        const term = search.toLowerCase();
+        const matchesTerm =
+            !term ||
+            p.name.toLowerCase().includes(term) ||
+            p.sku.toLowerCase().includes(term);
+        const matchesCategory =
+            categoryFilter === 'all' || p.category.id.toString() === categoryFilter;
+        const matchesStock =
+            stockFilter === 'all' ||
+            (stockFilter === 'out' && p.quantity === 0) ||
+            (stockFilter === 'low' && p.quantity > 0 && p.quantity <= p.alert_level) ||
+            (stockFilter === 'ok' && p.quantity > p.alert_level);
+        return matchesTerm && matchesCategory && matchesStock;
+    });
+
+    const getStockStatus = (product: Product) => {
+        if (product.quantity === 0) {
+            return (
+                <Badge variant="destructive" className="gap-1">
+                    <AlertTriangle className="w-3 h-3" /> Sem estoque
+                </Badge>
+            );
+        }
+        if (product.quantity <= product.alert_level) {
+            return (
+                <Badge variant="secondary" className="gap-1">
+                    <AlertTriangle className="w-3 h-3" /> Baixo
+                </Badge>
+            );
+        }
+        return <Badge variant="default">OK</Badge>;
+    };
+
+    const handleExportPDF = () => {
+        const headers = ['Nome', 'SKU', 'Categoria', 'Preço', 'Qtd', 'Alerta'];
+        const data = filteredProducts.map((p) => [
+            p.name,
+            p.sku,
+            p.category.name,
+            `R$ ${p.price.toFixed(2)}`,
+            p.quantity,
+            p.alert_level,
+        ]);
+        exportToPDF('Produtos', headers, data, 'produtos');
+    };
+
+    const handleExportCSV = () => {
+        const data = filteredProducts.map((p) => ({
+            name: p.name,
+            sku: p.sku,
+            category: p.category.name,
+            price: p.price,
+            quantity: p.quantity,
+            alert_level: p.alert_level,
+        }));
+        exportToCSV(data, 'produtos');
+    };
 
     if (loading) {
         return <div className="flex items-center justify-center h-64">Carregando...</div>;
@@ -120,7 +276,47 @@ export default function ProductsPage() {
             </div>
 
             <Card>
-                {/* ... existing CardHeader ... */}
+                <CardHeader>
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div className="flex flex-1 gap-2">
+                            <Input
+                                placeholder="Buscar por nome ou SKU"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
+                            <Select
+                                value={categoryFilter}
+                                onValueChange={(val) => setCategoryFilter(val)}
+                            >
+                                <SelectTrigger className="w-48">
+                                    <SelectValue placeholder="Categoria" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Todas</SelectItem>
+                                    {categories.map((cat) => (
+                                        <SelectItem key={cat.id} value={cat.id.toString()}>
+                                            {cat.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Select
+                                value={stockFilter}
+                                onValueChange={(val) => setStockFilter(val as any)}
+                            >
+                                <SelectTrigger className="w-40">
+                                    <SelectValue placeholder="Estoque" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Todos</SelectItem>
+                                    <SelectItem value="out">Zerado</SelectItem>
+                                    <SelectItem value="low">Baixo</SelectItem>
+                                    <SelectItem value="ok">Saudável</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                </CardHeader>
                 <CardContent>
                     <Table>
                         <TableHeader>

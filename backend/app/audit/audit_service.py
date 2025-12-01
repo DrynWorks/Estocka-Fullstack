@@ -45,6 +45,7 @@ def log_action(
 def get_audit_logs(
     db: Session,
     filters: audit_model.AuditLogFilter,
+    organization_id: int,
     limit: int = 50,
     offset: int = 0
 ) -> list[audit_model.AuditLog]:
@@ -54,10 +55,11 @@ def get_audit_logs(
     Args:
         db: Database session.
         filters: Filter criteria.
+        organization_id: Organization scope filter.
         limit: Maximum results to return.
         offset: Pagination offset.
 
     Returns:
         List of AuditLog instances.
     """
-    return audit_repository.list_audit_logs(db, filters, limit, offset)
+    return audit_repository.list_audit_logs(db, filters, organization_id=organization_id, limit=limit, offset=offset)

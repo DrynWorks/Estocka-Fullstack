@@ -158,8 +158,8 @@ export default function SignupPage() {
                     </div>
 
                     <div className="mt-4 text-center text-xs text-muted-foreground">
-                        <p>Ao criar uma conta, você será o <strong>Owner</strong> (proprietário)</p>
-                        <p>com todas as permissões do sistema.</p>
+                        <p>Ao criar uma conta, você será o <strong>Admin</strong></p>
+                        <p>com acesso completo ao sistema.</p>
                     </div>
                 </CardContent>
             </Card>

@@ -40,9 +40,9 @@ def update_my_organization(
     db: Annotated[Session, Depends(get_db)]
 ):
     """
-    Update the organization (admin/owner only).
+    Update the organization (admin only).
     
-    Note: In future, add role check to ensure only admin/owner can update.
+    Note: In future, add role check to ensure only admin can update.
     """
     organization = OrganizationService.get_by_id(db, current_user.organization_id)
     

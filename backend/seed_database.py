@@ -18,6 +18,7 @@ from app.categories.category_model import Category
 from app.movements.movement_model import Movement, MovementType
 from app.users.user_model import User
 from app.roles.role_model import Role
+from app.audit.audit_model import AuditLog  # ensure mapper is loaded
 from app.security import get_password_hash
 
 # Configuration
@@ -196,10 +197,10 @@ def ensure_roles_and_users(session):
         session.flush()
         print("  ✅ Organização padrão criada!")
     
-    # Create ALL roles (old + new)
-    all_roles = ["admin", "user", "owner", "manager", "operator", "viewer"]
+    # Create only the roles we use (admin, user). Legacy roles removidos.
+    all_roles = ["admin", "user"]
     roles = {}
-    
+
     for role_name in all_roles:
         role = session.execute(select(Role).where(Role.name == role_name)).scalar_one_or_none()
         if not role:
@@ -220,6 +221,19 @@ def ensure_roles_and_users(session):
         )
         session.add(admin)
         session.flush()
+
+    # Create default user if doesn't exist
+    default_user = session.execute(select(User).where(User.email == "user@estoque.com")).scalar_one_or_none()
+    if not default_user:
+        default_user = User(
+            email="user@estoque.com",
+            hashed_password=get_password_hash("1234"),
+            full_name="Usuario Padrao",
+            role_id=roles["user"].id,
+            organization_id=org.id
+        )
+        session.add(default_user)
+        session.flush()
     
     session.commit()
     print("✅ Organização, roles e usuários criados!")
@@ -233,7 +247,12 @@ def create_categories(session, level_config, organization_id):
     
     categories = []
     for name, desc in CATEGORIES_DATA[:num_categories]:
-        existing = session.execute(select(Category).where(Category.name == name)).scalar_one_or_none()
+        existing = session.execute(
+            select(Category).where(
+                Category.name == name,
+                Category.organization_id == organization_id
+            )
+        ).scalar_one_or_none()
         if existing:
             categories.append(existing)
         else:
