@@ -76,9 +76,9 @@ export function TopProductsChart({ limit = 5 }: TopProductsChartProps) {
                             dataKey="name"
                             className="text-xs"
                             tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                            angle={-45}
+                            angle={-25}
                             textAnchor="end"
-                            height={80}
+                            height={70}
                         />
                         <YAxis
                             className="text-xs"
@@ -92,7 +92,7 @@ export function TopProductsChart({ limit = 5 }: TopProductsChartProps) {
                             }}
                             labelStyle={{ color: 'hsl(var(--foreground))' }}
                         />
-                        <Legend />
+                        <Legend verticalAlign="top" height={36} />
                         <Bar
                             dataKey="vendas"
                             fill="hsl(var(--primary))"

@@ -15,6 +15,13 @@ import { Download, FileSpreadsheet, FileText } from 'lucide-react';
 import { reportService, type ABCItem, type XYZItem, type TurnoverItem, type FinancialReport, type ForecastItem } from '@/services/reportService';
 import { exportToCSV, exportToPDF } from '@/utils/export';
 import { usePermissions } from '@/hooks/usePermissions';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 
 export default function ReportsPage() {
     const { canExport } = usePermissions();
@@ -24,6 +31,10 @@ export default function ReportsPage() {
     const [xyz, setXyz] = useState<XYZItem[]>([]);
     const [turnover, setTurnover] = useState<TurnoverItem[]>([]);
     const [forecast, setForecast] = useState<ForecastItem[]>([]);
+    const [abcPageSize, setAbcPageSize] = useState(20);
+    const [xyzPageSize, setXyzPageSize] = useState(20);
+    const [turnoverPageSize, setTurnoverPageSize] = useState(20);
+    const [forecastPageSize, setForecastPageSize] = useState(20);
 
     useEffect(() => {
         const load = async () => {
@@ -58,6 +69,20 @@ export default function ReportsPage() {
         return counts;
     }, [abc]);
 
+    const paginated = {
+        abc: useMemo(() => abc.slice(0, abcPageSize), [abc, abcPageSize]),
+        xyz: useMemo(() => xyz.slice(0, xyzPageSize), [xyz, xyzPageSize]),
+        turnover: useMemo(() => turnover.slice(0, turnoverPageSize), [turnover, turnoverPageSize]),
+        forecast: useMemo(() => forecast.slice(0, forecastPageSize), [forecast, forecastPageSize]),
+    };
+
+    const riskCounters = useMemo(() => {
+        const critical = forecast.filter((f) => f.status === 'CRITICAL').length;
+        const warning = forecast.filter((f) => f.status === 'WARNING').length;
+        const ok = forecast.filter((f) => f.status === 'OK').length;
+        return { critical, warning, ok };
+    }, [forecast]);
+
     const handleExportCSV = () => {
         const data = abc.map((i) => ({
             produto: i.product_name,
@@ -89,8 +114,8 @@ export default function ReportsPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Relatórios</h1>
-                    <p className="text-slate-600 mt-1">Visão financeira e saúde do estoque</p>
+                    <h1 className="text-3xl font-bold text-foreground">Relatórios</h1>
+                    <p className="text-muted-foreground mt-1">Visão financeira e saúde do estoque</p>
                 </div>
                 {canExport('reports') && (
                     <div className="flex gap-2">
@@ -113,6 +138,37 @@ export default function ReportsPage() {
                 </div>
             )}
 
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="border-dashed">
+                    <CardHeader>
+                        <CardTitle className="text-sm text-muted-foreground">ABC (quantidade)</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex gap-2">
+                        <Badge variant="default">A: {abcCounts.A}</Badge>
+                        <Badge variant="secondary">B: {abcCounts.B}</Badge>
+                        <Badge variant="outline">C: {abcCounts.C}</Badge>
+                    </CardContent>
+                </Card>
+                <Card className="border-dashed">
+                    <CardHeader>
+                        <CardTitle className="text-sm text-muted-foreground">Risco de ruptura</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex gap-2">
+                        <Badge variant="destructive">Crítico: {riskCounters.critical}</Badge>
+                        <Badge variant="secondary">Alerta: {riskCounters.warning}</Badge>
+                        <Badge variant="default">OK: {riskCounters.ok}</Badge>
+                    </CardContent>
+                </Card>
+                <Card className="border-dashed">
+                    <CardHeader>
+                        <CardTitle className="text-sm text-muted-foreground">Itens exibidos</CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-sm text-muted-foreground">
+                        Ajuste a quantidade em cada aba para explorar mais dados.
+                    </CardContent>
+                </Card>
+            </div>
+
             <Tabs defaultValue="abc" className="space-y-4">
                 <TabsList>
                     <TabsTrigger value="abc">Curva ABC</TabsTrigger>
@@ -124,13 +180,33 @@ export default function ReportsPage() {
                 <TabsContent value="abc" className="space-y-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Distribuição ABC</CardTitle>
-                            <CardDescription>Quantidade de produtos por classe</CardDescription>
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <CardTitle>Distribuição ABC</CardTitle>
+                                    <CardDescription>Quantidade de produtos por classe</CardDescription>
+                                </div>
+                                <Select
+                                    value={abcPageSize === abc.length ? 'all' : abcPageSize.toString()}
+                                    onValueChange={(val) => setAbcPageSize(val === 'all' ? abc.length || 20 : parseInt(val))}
+                                >
+                                    <SelectTrigger className="w-[150px]">
+                                        <SelectValue placeholder="Itens" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="20">Top 20</SelectItem>
+                                        <SelectItem value="50">Top 50</SelectItem>
+                                        <SelectItem value="100">Top 100</SelectItem>
+                                        <SelectItem value="all">Todos</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </CardHeader>
-                        <CardContent className="flex gap-3">
-                            <Badge variant="default">A: {abcCounts.A}</Badge>
-                            <Badge variant="secondary">B: {abcCounts.B}</Badge>
-                            <Badge variant="outline">C: {abcCounts.C}</Badge>
+                        <CardContent>
+                            <div className="flex flex-wrap gap-3">
+                                <Badge variant="default">A: {abcCounts.A}</Badge>
+                                <Badge variant="secondary">B: {abcCounts.B}</Badge>
+                                <Badge variant="outline">C: {abcCounts.C}</Badge>
+                            </div>
                         </CardContent>
                     </Card>
 
@@ -139,37 +215,39 @@ export default function ReportsPage() {
                             <CardTitle>Curva ABC - Detalhada</CardTitle>
                             <CardDescription>Top 20 itens por valor consumido</CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Produto</TableHead>
-                                        <TableHead>Classe</TableHead>
-                                        <TableHead className="text-right">Valor</TableHead>
-                                        <TableHead className="text-right">% Individual</TableHead>
-                                        <TableHead className="text-right">% Acumulado</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {abc.length === 0 ? (
+                        <CardContent className="overflow-x-auto">
+                            <div className="max-h-[420px] overflow-auto border rounded-md">
+                                <Table>
+                                    <TableHeader className="sticky top-0 bg-background">
                                         <TableRow>
-                                            <TableCell colSpan={5} className="text-center text-slate-500 py-6">
-                                                Sem dados para ABC
-                                            </TableCell>
+                                            <TableHead>Produto</TableHead>
+                                            <TableHead>Classe</TableHead>
+                                            <TableHead className="text-right">Valor</TableHead>
+                                            <TableHead className="text-right">% Individual</TableHead>
+                                            <TableHead className="text-right">% Acumulado</TableHead>
                                         </TableRow>
-                                    ) : (
-                                        abc.slice(0, 20).map((item) => (
-                                            <TableRow key={item.product_id}>
-                                                <TableCell>{item.product_name}</TableCell>
-                                                <TableCell>{item.classification}</TableCell>
-                                                <TableCell className="text-right">R$ {item.value.toFixed(2)}</TableCell>
-                                                <TableCell className="text-right">{item.percentage.toFixed(2)}%</TableCell>
-                                                <TableCell className="text-right">{item.cumulative_percentage.toFixed(2)}%</TableCell>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {abc.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={5} className="text-center text-muted-foreground py-6">
+                                                    Sem dados para ABC
+                                                </TableCell>
                                             </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
+                                        ) : (
+                                            paginated.abc.map((item) => (
+                                                <TableRow key={item.product_id}>
+                                                    <TableCell>{item.product_name}</TableCell>
+                                                    <TableCell>{item.classification}</TableCell>
+                                                    <TableCell className="text-right">R$ {item.value.toFixed(2)}</TableCell>
+                                                    <TableCell className="text-right">{item.percentage.toFixed(2)}%</TableCell>
+                                                    <TableCell className="text-right">{item.cumulative_percentage.toFixed(2)}%</TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -177,36 +255,56 @@ export default function ReportsPage() {
                 <TabsContent value="xyz">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Demanda (XYZ)</CardTitle>
-                            <CardDescription>Variabilidade da demanda por produto</CardDescription>
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <CardTitle>Demanda (XYZ)</CardTitle>
+                                    <CardDescription>Variabilidade da demanda por produto</CardDescription>
+                                </div>
+                                <Select
+                                    value={xyzPageSize === xyz.length ? 'all' : xyzPageSize.toString()}
+                                    onValueChange={(val) => setXyzPageSize(val === 'all' ? xyz.length || 20 : parseInt(val))}
+                                >
+                                    <SelectTrigger className="w-[150px]">
+                                        <SelectValue placeholder="Itens" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="20">Top 20</SelectItem>
+                                        <SelectItem value="50">Top 50</SelectItem>
+                                        <SelectItem value="100">Top 100</SelectItem>
+                                        <SelectItem value="all">Todos</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Produto</TableHead>
-                                        <TableHead>Classe</TableHead>
-                                        <TableHead className="text-right">CV</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {xyz.length === 0 ? (
+                        <CardContent className="overflow-x-auto">
+                            <div className="max-h-[420px] overflow-auto border rounded-md">
+                                <Table>
+                                    <TableHeader className="sticky top-0 bg-background">
                                         <TableRow>
-                                            <TableCell colSpan={3} className="text-center text-slate-500 py-6">
-                                                Sem dados para XYZ
-                                            </TableCell>
+                                            <TableHead>Produto</TableHead>
+                                            <TableHead>Classe</TableHead>
+                                            <TableHead className="text-right">CV</TableHead>
                                         </TableRow>
-                                    ) : (
-                                        xyz.map((item) => (
-                                            <TableRow key={item.product_id}>
-                                                <TableCell>{item.product_name}</TableCell>
-                                                <TableCell>{item.classification}</TableCell>
-                                                <TableCell className="text-right">{item.cv.toFixed(3)}</TableCell>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {xyz.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={3} className="text-center text-muted-foreground py-6">
+                                                    Sem dados para XYZ
+                                                </TableCell>
                                             </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
+                                        ) : (
+                                            paginated.xyz.map((item) => (
+                                                <TableRow key={item.product_id}>
+                                                    <TableCell>{item.product_name}</TableCell>
+                                                    <TableCell>{item.classification}</TableCell>
+                                                    <TableCell className="text-right">{item.cv.toFixed(3)}</TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -214,38 +312,58 @@ export default function ReportsPage() {
                 <TabsContent value="turnover">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Giro de Estoque</CardTitle>
-                            <CardDescription>Relação vendas / estoque médio</CardDescription>
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <CardTitle>Giro de Estoque</CardTitle>
+                                    <CardDescription>Relação vendas / estoque médio</CardDescription>
+                                </div>
+                                <Select
+                                    value={turnoverPageSize === turnover.length ? 'all' : turnoverPageSize.toString()}
+                                    onValueChange={(val) => setTurnoverPageSize(val === 'all' ? turnover.length || 20 : parseInt(val))}
+                                >
+                                    <SelectTrigger className="w-[150px]">
+                                        <SelectValue placeholder="Itens" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="20">Top 20</SelectItem>
+                                        <SelectItem value="50">Top 50</SelectItem>
+                                        <SelectItem value="100">Top 100</SelectItem>
+                                        <SelectItem value="all">Todos</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Produto</TableHead>
-                                        <TableHead className="text-right">Taxa de Giro</TableHead>
-                                        <TableHead className="text-right">Estoque Médio</TableHead>
-                                        <TableHead className="text-right">Total Vendido</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {turnover.length === 0 ? (
+                        <CardContent className="overflow-x-auto">
+                            <div className="max-h-[420px] overflow-auto border rounded-md">
+                                <Table>
+                                    <TableHeader className="sticky top-0 bg-background">
                                         <TableRow>
-                                            <TableCell colSpan={4} className="text-center text-slate-500 py-6">
-                                                Sem dados de giro
-                                            </TableCell>
+                                            <TableHead>Produto</TableHead>
+                                            <TableHead className="text-right">Taxa de Giro</TableHead>
+                                            <TableHead className="text-right">Estoque Médio</TableHead>
+                                            <TableHead className="text-right">Total Vendido</TableHead>
                                         </TableRow>
-                                    ) : (
-                                        turnover.map((item) => (
-                                            <TableRow key={item.product_id}>
-                                                <TableCell>{item.product_name}</TableCell>
-                                                <TableCell className="text-right">{item.turnover_rate.toFixed(2)}x</TableCell>
-                                                <TableCell className="text-right">{item.avg_inventory.toFixed(1)}</TableCell>
-                                                <TableCell className="text-right">{item.total_sales}</TableCell>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {turnover.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={4} className="text-center text-muted-foreground py-6">
+                                                    Sem dados de giro
+                                                </TableCell>
                                             </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
+                                        ) : (
+                                            paginated.turnover.map((item) => (
+                                                <TableRow key={item.product_id}>
+                                                    <TableCell>{item.product_name}</TableCell>
+                                                    <TableCell className="text-right">{item.turnover_rate.toFixed(2)}x</TableCell>
+                                                    <TableCell className="text-right">{item.avg_inventory.toFixed(1)}</TableCell>
+                                                    <TableCell className="text-right">{item.total_sales}</TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -253,44 +371,64 @@ export default function ReportsPage() {
                 <TabsContent value="forecast">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Previsão de Estoque</CardTitle>
-                            <CardDescription>Risco de ruptura e ponto de pedido</CardDescription>
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <CardTitle>Previsão de Estoque</CardTitle>
+                                    <CardDescription>Risco de ruptura e ponto de pedido</CardDescription>
+                                </div>
+                                <Select
+                                    value={forecastPageSize === forecast.length ? 'all' : forecastPageSize.toString()}
+                                    onValueChange={(val) => setForecastPageSize(val === 'all' ? forecast.length || 20 : parseInt(val))}
+                                >
+                                    <SelectTrigger className="w-[150px]">
+                                        <SelectValue placeholder="Itens" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="20">Top 20</SelectItem>
+                                        <SelectItem value="50">Top 50</SelectItem>
+                                        <SelectItem value="100">Top 100</SelectItem>
+                                        <SelectItem value="all">Todos</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Produto</TableHead>
-                                        <TableHead className="text-right">Consumo Diário</TableHead>
-                                        <TableHead className="text-right">Dias Restantes</TableHead>
-                                        <TableHead className="text-right">Ponto de Pedido</TableHead>
-                                        <TableHead className="text-center">Status</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {forecast.length === 0 ? (
+                        <CardContent className="overflow-x-auto">
+                            <div className="max-h-[420px] overflow-auto border rounded-md">
+                                <Table>
+                                    <TableHeader className="sticky top-0 bg-background">
                                         <TableRow>
-                                            <TableCell colSpan={5} className="text-center text-slate-500 py-6">
-                                                Sem dados de previsão
-                                            </TableCell>
+                                            <TableHead>Produto</TableHead>
+                                            <TableHead className="text-right">Consumo Diário</TableHead>
+                                            <TableHead className="text-right">Dias Restantes</TableHead>
+                                            <TableHead className="text-right">Ponto de Pedido</TableHead>
+                                            <TableHead className="text-center">Status</TableHead>
                                         </TableRow>
-                                    ) : (
-                                        forecast.map((item) => (
-                                            <TableRow key={item.product_id}>
-                                                <TableCell>{item.product_name}</TableCell>
-                                                <TableCell className="text-right">{item.daily_usage.toFixed(2)}</TableCell>
-                                                <TableCell className="text-right">
-                                                    {item.days_until_stockout > 365 ? '> 1 ano' : `${item.days_until_stockout.toFixed(0)} dias`}
-                                                </TableCell>
-                                                <TableCell className="text-right">{item.reorder_point}</TableCell>
-                                                <TableCell className="text-center">
-                                                    <StatusBadge status={item.status} />
+                                    </TableHeader>
+                                    <TableBody>
+                                        {forecast.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={5} className="text-center text-muted-foreground py-6">
+                                                    Sem dados de previsão
                                                 </TableCell>
                                             </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
+                                        ) : (
+                                            paginated.forecast.map((item) => (
+                                                <TableRow key={item.product_id}>
+                                                    <TableCell>{item.product_name}</TableCell>
+                                                    <TableCell className="text-right">{item.daily_usage.toFixed(2)}</TableCell>
+                                                    <TableCell className="text-right">
+                                                        {item.days_until_stockout > 365 ? '> 1 ano' : `${item.days_until_stockout.toFixed(0)} dias`}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">{item.reorder_point}</TableCell>
+                                                    <TableCell className="text-center">
+                                                        <StatusBadge status={item.status} />
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -303,10 +441,10 @@ function SummaryCard({ title, value, prefix, suffix }: { title: string; value: n
     return (
         <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
-                <CardTitle className="text-sm text-slate-600">{title}</CardTitle>
+                <CardTitle className="text-sm text-muted-foreground">{title}</CardTitle>
             </CardHeader>
             <CardContent>
-                <div className="text-2xl font-bold text-slate-900">
+                <div className="text-2xl font-bold text-foreground">
                     {prefix} {value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} {suffix}
                 </div>
             </CardContent>
@@ -315,7 +453,7 @@ function SummaryCard({ title, value, prefix, suffix }: { title: string; value: n
 }
 
 function StatusBadge({ status }: { status: ForecastItem['status'] }) {
-    if (status === 'CRITICAL') return <Badge variant="destructive">CRITICAL</Badge>;
-    if (status === 'WARNING') return <Badge variant="secondary">WARNING</Badge>;
+    if (status === 'CRITICAL') return <Badge variant="destructive">Crítico</Badge>;
+    if (status === 'WARNING') return <Badge variant="secondary">Alerta</Badge>;
     return <Badge variant="default">OK</Badge>;
 }

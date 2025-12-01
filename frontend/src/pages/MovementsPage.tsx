@@ -62,6 +62,7 @@ export default function MovementsPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [typeFilter, setTypeFilter] = useState<string>('all');
     const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState<number>(10);
     const [loading, setLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -72,8 +73,6 @@ export default function MovementsPage() {
         reason: '',
         note: ''
     });
-
-    const itemsPerPage = 10;
 
     useEffect(() => {
         loadData();
@@ -107,8 +106,9 @@ export default function MovementsPage() {
         return matchesSearch && matchesType;
     });
 
-    const totalPages = Math.ceil(filteredMovements.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
+    const totalPages = Math.max(1, Math.ceil(filteredMovements.length / itemsPerPage));
+    const page = Math.min(currentPage, totalPages);
+    const startIndex = (page - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const paginatedMovements = filteredMovements.slice(startIndex, endIndex);
 
@@ -249,6 +249,24 @@ export default function MovementsPage() {
                                 <SelectItem value="saida">Saída</SelectItem>
                             </SelectContent>
                         </Select>
+                        <Select
+                            value={itemsPerPage.toString()}
+                            onValueChange={(val) => {
+                                const num = val === 'all' ? filteredMovements.length || 10 : parseInt(val);
+                                setItemsPerPage(num);
+                                setCurrentPage(1);
+                            }}
+                        >
+                            <SelectTrigger className="w-[140px]">
+                                <SelectValue placeholder="Itens por página" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="10">10 por página</SelectItem>
+                                <SelectItem value="25">25 por página</SelectItem>
+                                <SelectItem value="50">50 por página</SelectItem>
+                                <SelectItem value="all">Todos</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -325,20 +343,20 @@ export default function MovementsPage() {
                                     <PaginationItem>
                                         <PaginationPrevious
                                             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                            className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                                            className={page === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
                                         />
                                     </PaginationItem>
                                     {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
                                         let pageNum = i + 1;
                                         if (totalPages > 5) {
-                                            if (currentPage > 3) pageNum = currentPage - 2 + i;
-                                            if (currentPage > totalPages - 2) pageNum = totalPages - 4 + i;
+                                            if (page > 3) pageNum = page - 2 + i;
+                                            if (page > totalPages - 2) pageNum = totalPages - 4 + i;
                                         }
                                         return (
                                             <PaginationItem key={pageNum}>
                                                 <PaginationLink
                                                     onClick={() => setCurrentPage(pageNum)}
-                                                    isActive={currentPage === pageNum}
+                                                    isActive={page === pageNum}
                                                     className="cursor-pointer"
                                                 >
                                                     {pageNum}
@@ -349,7 +367,7 @@ export default function MovementsPage() {
                                     <PaginationItem>
                                         <PaginationNext
                                             onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                            className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                                            className={page === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
                                         />
                                     </PaginationItem>
                                 </PaginationContent>

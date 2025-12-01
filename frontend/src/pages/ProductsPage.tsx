@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,7 +49,21 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Product, Category } from '@/types';
-import { Plus, Search, Pencil, Trash2, AlertTriangle, Package, Download, FileText, FileSpreadsheet } from 'lucide-react';
+import {
+    Plus,
+    Search,
+    Pencil,
+    Trash2,
+    AlertTriangle,
+    Package,
+    Download,
+    FileText,
+    FileSpreadsheet,
+    LayoutGrid,
+    List,
+    Tag,
+    Layers,
+} from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
 import { usePermissions } from '@/hooks/usePermissions';
 import {
@@ -74,6 +88,8 @@ export default function ProductsPage() {
     const [categoryFilter, setCategoryFilter] = useState<string>('all');
     const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out' | 'ok'>('all');
     const [currentPage, setCurrentPage] = useState<number>(1);
+    const [itemsPerPage, setItemsPerPage] = useState<number>(12);
+    const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
     const [formData, setFormData] = useState({
         name: '',
         sku: '',
@@ -183,23 +199,24 @@ export default function ProductsPage() {
         }
     };
 
-    const filteredProducts = products.filter((p) => {
+    const filteredProducts = useMemo(() => {
         const term = search.toLowerCase();
-        const matchesTerm =
-            !term ||
-            p.name.toLowerCase().includes(term) ||
-            p.sku.toLowerCase().includes(term);
-        const matchesCategory =
-            categoryFilter === 'all' || p.category.id.toString() === categoryFilter;
-        const matchesStock =
-            stockFilter === 'all' ||
-            (stockFilter === 'out' && p.quantity === 0) ||
-            (stockFilter === 'low' && p.quantity > 0 && p.quantity <= p.alert_level) ||
-            (stockFilter === 'ok' && p.quantity > p.alert_level);
-        return matchesTerm && matchesCategory && matchesStock;
-    });
+        return products.filter((p) => {
+            const matchesTerm =
+                !term ||
+                p.name.toLowerCase().includes(term) ||
+                p.sku.toLowerCase().includes(term);
+            const matchesCategory =
+                categoryFilter === 'all' || p.category.id.toString() === categoryFilter;
+            const matchesStock =
+                stockFilter === 'all' ||
+                (stockFilter === 'out' && p.quantity === 0) ||
+                (stockFilter === 'low' && p.quantity > 0 && p.quantity <= p.alert_level) ||
+                (stockFilter === 'ok' && p.quantity > p.alert_level);
+            return matchesTerm && matchesCategory && matchesStock;
+        });
+    }, [products, search, categoryFilter, stockFilter]);
 
-    const itemsPerPage = 12;
     const totalPages = Math.max(1, Math.ceil(filteredProducts.length / itemsPerPage));
     const page = Math.min(currentPage, totalPages);
     const startIndex = (page - 1) * itemsPerPage;
@@ -253,14 +270,173 @@ export default function ProductsPage() {
         return <div className="flex items-center justify-center h-64">Carregando...</div>;
     }
 
+    const renderTable = () => (
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    <TableHead>Produto</TableHead>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>Categoria</TableHead>
+                    <TableHead>Preço</TableHead>
+                    <TableHead>Estoque</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {paginatedProducts.length === 0 ? (
+                    <TableRow>
+                        <TableCell colSpan={7} className="p-0">
+                            {products.length === 0 ? (
+                                <EmptyState
+                                    icon={Package}
+                                    title="Nenhum produto cadastrado"
+                                    description="Comece adicionando seu primeiro produto ao estoque"
+                                    action={canCreate('products') ? {
+                                        label: "Novo Produto",
+                                        onClick: () => openDialog()
+                                    } : undefined}
+                                />
+                            ) : (
+                                <EmptyState
+                                    icon={Search}
+                                    title="Nenhum produto encontrado"
+                                    description="Tente ajustar os filtros ou termo de busca"
+                                    variant="search"
+                                />
+                            )}
+                        </TableCell>
+                    </TableRow>
+                ) : (
+                    paginatedProducts.map((product) => (
+                        <TableRow key={product.id}>
+                            <TableCell className="font-medium">{product.name}</TableCell>
+                            <TableCell className="font-mono text-sm">{product.sku}</TableCell>
+                            <TableCell>{product.category.name}</TableCell>
+                            <TableCell>R$ {product.price.toFixed(2)}</TableCell>
+                            <TableCell>{product.quantity} un.</TableCell>
+                            <TableCell>{getStockStatus(product)}</TableCell>
+                            <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                    {canEdit('products') && (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => openDialog(product)}
+                                        >
+                                            <Pencil className="w-4 h-4" />
+                                        </Button>
+                                    )}
+                                    {canDelete('products') && (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => openDeleteDialog(product)}
+                                        >
+                                            <Trash2 className="w-4 h-4 text-red-600" />
+                                        </Button>
+                                    )}
+                                </div>
+                            </TableCell>
+                        </TableRow>
+                    ))
+                )}
+            </TableBody>
+        </Table>
+    );
+
+    const renderGrid = () => (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {paginatedProducts.map((product) => (
+                <Card key={product.id} className="h-full">
+                    <CardHeader className="space-y-1">
+                        <div className="flex items-start justify-between gap-2">
+                            <div>
+                                <h3 className="font-semibold text-lg text-foreground">{product.name}</h3>
+                                <p className="text-sm text-muted-foreground font-mono">{product.sku}</p>
+                            </div>
+                            {getStockStatus(product)}
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                            <Tag className="w-4 h-4" />
+                            <span>{product.category.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Layers className="w-4 h-4" />
+                            <span>Estoque: <strong className="text-foreground">{product.quantity}</strong> un.</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="font-semibold text-foreground">R$ {product.price.toFixed(2)}</span>
+                            <span className="text-xs text-muted-foreground">Custo: R$ {product.cost_price.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-end gap-2 pt-2">
+                            {canEdit('products') && (
+                                <Button variant="outline" size="icon" onClick={() => openDialog(product)}>
+                                    <Pencil className="w-4 h-4" />
+                                </Button>
+                            )}
+                            {canDelete('products') && (
+                                <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(product)}>
+                                    <Trash2 className="w-4 h-4 text-red-600" />
+                                </Button>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+            ))}
+            {paginatedProducts.length === 0 && (
+                <div className="sm:col-span-2 xl:col-span-3">
+                    {products.length === 0 ? (
+                        <EmptyState
+                            icon={Package}
+                            title="Nenhum produto cadastrado"
+                            description="Comece adicionando seu primeiro produto ao estoque"
+                            action={canCreate('products') ? {
+                                label: "Novo Produto",
+                                onClick: () => openDialog()
+                            } : undefined}
+                        />
+                    ) : (
+                        <EmptyState
+                            icon={Search}
+                            title="Nenhum produto encontrado"
+                            description="Tente ajustar os filtros ou termo de busca"
+                            variant="search"
+                        />
+                    )}
+                </div>
+            )}
+        </div>
+    );
+
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Produtos</h1>
-                    <p className="text-slate-600 mt-1">Gerencie o catálogo de produtos</p>
+                    <h1 className="text-3xl font-bold text-foreground">Produtos</h1>
+                    <p className="text-muted-foreground mt-1">Gerencie o catálogo de produtos</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 justify-end">
+                    <div className="flex rounded-md border border-muted bg-background">
+                        <Button
+                            variant={viewMode === 'list' ? 'default' : 'ghost'}
+                            size="icon"
+                            onClick={() => setViewMode('list')}
+                            aria-label="Ver em lista"
+                        >
+                            <List className="w-4 h-4" />
+                        </Button>
+                        <Button
+                            variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                            size="icon"
+                            onClick={() => setViewMode('grid')}
+                            aria-label="Ver em grade"
+                        >
+                            <LayoutGrid className="w-4 h-4" />
+                        </Button>
+                    </div>
                     {canExport('products') && (
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -332,87 +508,36 @@ export default function ProductsPage() {
                                 </SelectContent>
                             </Select>
                         </div>
+                        <div className="flex gap-2">
+                            <Select
+                                value={itemsPerPage === filteredProducts.length ? 'all' : itemsPerPage.toString()}
+                                onValueChange={(val) => {
+                                    const num = val === 'all' ? Math.max(filteredProducts.length, 1) : parseInt(val);
+                                    setItemsPerPage(num);
+                                    setCurrentPage(1);
+                                }}
+                            >
+                                <SelectTrigger className="w-[150px]">
+                                    <SelectValue placeholder="Itens por página" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="12">12 por página</SelectItem>
+                                    <SelectItem value="25">25 por página</SelectItem>
+                                    <SelectItem value="50">50 por página</SelectItem>
+                                    <SelectItem value="all">Todos</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Produto</TableHead>
-                                <TableHead>SKU</TableHead>
-                                <TableHead>Categoria</TableHead>
-                                <TableHead>Preço</TableHead>
-                                <TableHead>Estoque</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="text-right">Ações</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {paginatedProducts.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={7} className="p-0">
-                                        {products.length === 0 ? (
-                                            <EmptyState
-                                                icon={Package}
-                                                title="Nenhum produto cadastrado"
-                                                description="Comece adicionando seu primeiro produto ao estoque"
-                                                action={canCreate('products') ? {
-                                                    label: "Novo Produto",
-                                                    onClick: () => openDialog()
-                                                } : undefined}
-                                            />
-                                        ) : (
-                                            <EmptyState
-                                                icon={Search}
-                                                title="Nenhum produto encontrado"
-                                                description="Tente ajustar os filtros ou termo de busca"
-                                                variant="search"
-                                            />
-                                        )}
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                paginatedProducts.map((product) => (
-                                    <TableRow key={product.id}>
-                                        <TableCell className="font-medium">{product.name}</TableCell>
-                                        <TableCell className="font-mono text-sm">{product.sku}</TableCell>
-                                        <TableCell>{product.category.name}</TableCell>
-                                        <TableCell>R$ {product.price.toFixed(2)}</TableCell>
-                                        <TableCell>{product.quantity} un.</TableCell>
-                                        <TableCell>{getStockStatus(product)}</TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                {canEdit('products') && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() => openDialog(product)}
-                                                    >
-                                                        <Pencil className="w-4 h-4" />
-                                                    </Button>
-                                                )}
-                                                {canDelete('products') && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() => openDeleteDialog(product)}
-                                                    >
-                                                        <Trash2 className="w-4 h-4 text-red-600" />
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
+                    {viewMode === 'list' ? renderTable() : renderGrid()}
                 </CardContent>
             </Card>
 
             {filteredProducts.length > itemsPerPage && (
-                <div className="flex items-center justify-between px-2 py-4">
-                    <div className="text-sm text-slate-600">
+                <div className="flex flex-wrap items-center justify-between gap-3 px-2 py-4">
+                    <div className="text-sm text-muted-foreground">
                         Mostrando {startIndex + 1} a {Math.min(endIndex, filteredProducts.length)} de {filteredProducts.length} produtos
                     </div>
                     <Pagination>

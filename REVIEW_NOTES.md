@@ -1,24 +1,25 @@
-Erros encontrados / status
+Entendi os pontos:
 
-1) Auditoria com organization_id ✅ corrigido
-- Local: logs em movimentos/produtos não passavam organization_id; listagem não filtrava por org.
-- Ação feita: chamadas de `audit_service.log_action` passaram organization_id; `list_audit_logs` agora filtra por org. Endpoint `/audit/logs` usa org do usuário.
+Dashboard (dark): cores muito fechadas, títulos pouco legíveis e gráficos com “Sem dados” sem fallback visual. Últimas movimentações poderiam ser mais úteis/visuais. Legenda do Top 5 sobrepõe nomes longos.
+Produtos: título escuro no dark, tabela longa sem paginação; quer opção de grade.
+Relatórios: cores e legibilidade no dark, UX mais intuitiva por relatório; poderia incluir mais visuais úteis.
+Auditoria: cores erradas no dark.
+Vou atacar em duas frentes: (a) melhorar UX/legibilidade (cores, estados sem dados, legendas, grid de produtos) e (b) adicionar valor em relatórios/dash (melhor cards/visuais).
+Vou implementar:
 
-2) Relatórios /reports ✅ corrigido
-- Problema: endpoint `/reports/movements` com variáveis não definidas; services sem organization_id e risco multi-tenant.
-- Ação feita: endpoints passam organization_id; `report_service` recebe org em todas as funções; movimentos filtram por org.
+Dashboard
+Fallbacks “sem dados” em todos os gráficos (SalesTrend/TopProducts/ABC) com placeholders claros e sem NaN.
+Top 5: quebrar labels longos e mover legenda para canto sem sobrepor; limitar largura dos rótulos.
+Últimas movimentações: cartão mais compacto com badges por tipo e quantidade, com cores ajustadas para dark.
+Paleta dark ajustada (titles/branco mais forte, cards com contraste).
+Produtos
+Adicionar toggle lista/grade (grid de cards) e paginação na lista.
+Ajustar cores de títulos no dark.
+Relatórios
+Ajustar cores dos cards de KPI para dark (texto claro, contraste).
+Melhorar tabelas longas com cabeçalho fixo/scroll interno ou seções colapsáveis.
+Fallback “sem dados” nos blocos (ABC/XYZ etc.) e destacar insights simples (ex: top risco ruptura).
+Auditoria
+Ajustar cores para dark, badges consistentes.
+Se concordar, implemento essas melhorias agora.
 
-3) Produto não persistia custo/lead_time ✅ corrigido
-- Local: `product_repository.create_product` ignorava `cost_price` e `lead_time`.
-- Ação feita: campos incluídos no insert.
-
-4) Busca de produtos com filtros incompletos ✅ corrigido
-- Local: `product_controller.search_products` e `product_service.search_products`.
-- Ação feita: busca agora usa `build_product_filters` com stock_status (out/low/ok) e price_min/price_max, filtrando por organização.
-
-5) Papéis/permissões simplificados ✅ corrigido
-- Agora só `admin` e `user` (aliases: owner->admin, collaborator->user). Signup cria admin. Frontend `usePermissions` espelha.
-
-6) Frontend quebrado (páginas incompletas) ✅ corrigido
-- Local: `frontend/src/pages/ProductsPage.tsx` e `frontend/src/pages/ReportsPage.tsx`.
-- Ação feita: páginas reescritas com estados/efeitos completos, CRUD de produtos, filtros, e relatórios com tabelas básicas e exportação.
