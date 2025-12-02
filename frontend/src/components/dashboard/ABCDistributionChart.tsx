@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react';
+Ôªøimport { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import dashboardService from '@/services/dashboardService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const COLORS = {
-  A: 'hsl(var(--chart-1))',
-  B: 'hsl(var(--chart-2))',
-  C: 'hsl(var(--chart-3))',
+  A: '#16a34a',
+  B: '#22c55e',
+  C: '#86efac',
 };
 
 export function ABCDistributionChart() {
@@ -24,17 +24,17 @@ export function ABCDistributionChart() {
 
         const chartData = total > 0
           ? entries.map(([key, value]) => ({
-              name: `Classe ${key}`,
-              value: value as number,
-              percentage: ((value as number) * 100) / total,
-            }))
+            name: `Classe ${key}`,
+            value: value as number,
+            percentage: ((value as number) * 100) / total,
+          }))
           : [];
 
         setData(chartData);
         setError(null);
       } catch (err) {
         console.error('Error loading ABC distribution:', err);
-        setError('Erro ao carregar distribuiÁ„o ABC');
+        setError('Erro ao carregar distribui√ß√£o ABC');
       } finally {
         setLoading(false);
       }
@@ -43,24 +43,32 @@ export function ABCDistributionChart() {
     fetchData();
   }, []);
 
-  const BaseCard = ({ children }: { children: React.ReactNode }) => (
-    <Card>
-      <CardHeader>
-        <CardTitle>DistribuiÁ„o ABC de Produtos</CardTitle>
-        <CardDescription>ClassificaÁ„o por import‚ncia no estoque</CardDescription>
-      </CardHeader>
-      <CardContent className="h-[350px] flex items-center justify-center">
-        {children}
-      </CardContent>
-    </Card>
-  );
-
   if (loading) {
-    return <BaseCard> <p className="text-muted-foreground">Carregando...</p> </BaseCard>;
+    return (
+      <Card className="h-full">
+        <CardHeader>
+          <CardTitle>Distribui√ß√£o ABC de Produtos</CardTitle>
+          <CardDescription>Classifica√ß√£o por import√¢ncia no estoque</CardDescription>
+        </CardHeader>
+        <CardContent className="h-[300px] flex items-center justify-center">
+          <p className="text-muted-foreground">Carregando...</p>
+        </CardContent>
+      </Card>
+    );
   }
 
   if (error || data.length === 0) {
-    return <BaseCard> <p className="text-muted-foreground">{error || 'Sem dados disponÌveis'}</p> </BaseCard>;
+    return (
+      <Card className="h-full">
+        <CardHeader>
+          <CardTitle>Distribui√ß√£o ABC de Produtos</CardTitle>
+          <CardDescription>Classifica√ß√£o por import√¢ncia no estoque</CardDescription>
+        </CardHeader>
+        <CardContent className="h-[300px] flex items-center justify-center">
+          <p className="text-muted-foreground">{error || 'Sem dados dispon√≠veis'}</p>
+        </CardContent>
+      </Card>
+    );
   }
 
   const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
@@ -83,15 +91,15 @@ export function ABCDistributionChart() {
   };
 
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader>
-        <CardTitle>DistribuiÁ„o ABC de Produtos</CardTitle>
+        <CardTitle>Distribui√ß√£o ABC de Produtos</CardTitle>
         <CardDescription className="text-sm text-muted-foreground">
-          ClassificaÁ„o por import‚ncia no estoque
+          Classifica√ß√£o por import√¢ncia no estoque
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={350}>
+        <ResponsiveContainer width="100%" height={300}>
           <PieChart>
             <Pie
               data={data}
@@ -99,7 +107,7 @@ export function ABCDistributionChart() {
               cy="50%"
               labelLine={false}
               label={renderCustomLabel}
-              outerRadius={100}
+              outerRadius={80}
               dataKey="value"
             >
               {data.map((entry, index) => (
@@ -114,6 +122,7 @@ export function ABCDistributionChart() {
                 backgroundColor: 'hsl(var(--card))',
                 border: '1px solid hsl(var(--border))',
                 borderRadius: '6px',
+                color: 'hsl(var(--foreground))'
               }}
               formatter={(value: any, name: any, props: any) => [
                 `${value} produtos (${props.payload.percentage.toFixed(1)}%)`,

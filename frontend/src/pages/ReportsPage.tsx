@@ -13,10 +13,23 @@ import {
   type FinancialReport,
   type ForecastItem,
 } from "@/services/reportService";
-  import { exportToCSV, exportToPDF } from "@/utils/export";
+import { exportToCSV, exportToPDF } from "@/utils/export";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+  Legend,
+  ResponsiveContainer,
+  CartesianGrid,
+} from "recharts";
 
 export default function ReportsPage() {
   const { canExport } = usePermissions();
@@ -57,11 +70,65 @@ export default function ReportsPage() {
 
   const abcCounts = useMemo(() => {
     const counts = { A: 0, B: 0, C: 0 };
+    let totalValue = 0;
+    const valueByClass = { A: 0, B: 0, C: 0 };
+
     abc.forEach((item) => {
-      counts[item.classification as "A" | "B" | "C"] += 1;
+      const cls = item.classification as "A" | "B" | "C";
+      counts[cls] += 1;
+      valueByClass[cls] += item.value;
+      totalValue += item.value;
     });
-    return counts;
+
+    return { counts, valueByClass, totalValue };
   }, [abc]);
+
+  const abcChartData = useMemo(() => {
+    return [
+      { name: "Classe A", value: abcCounts.valueByClass.A, count: abcCounts.counts.A, color: "#16a34a" }, // green-600
+      { name: "Classe B", value: abcCounts.valueByClass.B, count: abcCounts.counts.B, color: "#22c55e" }, // green-500
+      { name: "Classe C", value: abcCounts.valueByClass.C, count: abcCounts.counts.C, color: "#86efac" }, // green-300
+    ];
+  }, [abcCounts]);
+
+  const xyzChartData = useMemo(() => {
+    const counts = { X: 0, Y: 0, Z: 0 };
+    xyz.forEach((item) => {
+      if (["X", "Y", "Z"].includes(item.classification)) {
+        counts[item.classification as "X" | "Y" | "Z"] += 1;
+      }
+    });
+    return [
+      { name: "X", count: counts.X, color: "#22c55e" }, // green-500
+      { name: "Y", count: counts.Y, color: "#eab308" }, // yellow-500
+      { name: "Z", count: counts.Z, color: "#f97316" }, // orange-500
+    ];
+  }, [xyz]);
+
+  const turnoverChartData = useMemo(() => {
+    return [...turnover]
+      .sort((a, b) => b.turnover_rate - a.turnover_rate)
+      .slice(0, 5)
+      .map((item) => ({
+        name: item.product_name.length > 15 ? item.product_name.substring(0, 15) + "..." : item.product_name,
+        full_name: item.product_name,
+        rate: item.turnover_rate,
+      }));
+  }, [turnover]);
+
+  const forecastChartData = useMemo(() => {
+    const counts = { CRITICAL: 0, WARNING: 0, OK: 0 };
+    forecast.forEach((item) => {
+      if (["CRITICAL", "WARNING", "OK"].includes(item.status)) {
+        counts[item.status as "CRITICAL" | "WARNING" | "OK"] += 1;
+      }
+    });
+    return [
+      { name: "Crítico", status: "CRITICAL", count: counts.CRITICAL, color: "#ef4444" }, // red-500
+      { name: "Alerta", status: "WARNING", count: counts.WARNING, color: "#eab308" }, // yellow-500
+      { name: "OK", status: "OK", count: counts.OK, color: "#22c55e" }, // green-500
+    ];
+  }, [forecast]);
 
   const applyLimit = <T,>(items: T[]) => (itemsPageSize === "all" ? items : items.slice(0, itemsPageSize));
 
@@ -72,12 +139,7 @@ export default function ReportsPage() {
     forecast: useMemo(() => applyLimit(forecast), [forecast, itemsPageSize]),
   };
 
-  const riskCounters = useMemo(() => {
-    const critical = forecast.filter((f) => f.status === "CRITICAL").length;
-    const warning = forecast.filter((f) => f.status === "WARNING").length;
-    const ok = forecast.filter((f) => f.status === "OK").length;
-    return { critical, warning, ok };
-  }, [forecast]);
+
 
   const handleExportCSV = () => {
     const data = abc.map((i) => ({
@@ -108,7 +170,7 @@ export default function ReportsPage() {
 
   const emptyMsg = (
     <div className="py-8 text-center text-muted-foreground text-sm">
-      Sem dados suficientes para este relatório.ório. Cadastre produtos e movimentações para visualizar esta seção.ção.
+      Sem dados suficientes para este relatório. Cadastre produtos e movimentações para visualizar esta seção.
     </div>
   );
 
@@ -119,16 +181,35 @@ export default function ReportsPage() {
           <h1 className="text-3xl font-bold text-foreground">Relatórios</h1>
           <p className="text-muted-foreground mt-1">Visão financeira e saúde do estoque</p>
         </div>
-        {canExport("reports") && (
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleExportPDF} className="gap-2">
-              <FileText className="w-4 h-4" /> PDF
-            </Button>
-            <Button variant="outline" onClick={handleExportCSV} className="gap-2">
-              <FileSpreadsheet className="w-4 h-4" /> CSV
-            </Button>
+        <div className="flex gap-2 items-center">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Itens por página:</span>
+            <Select
+              value={itemsPageSize === "all" ? "all" : itemsPageSize.toString()}
+              onValueChange={(val) => setItemsPageSize(val === "all" ? "all" : parseInt(val))}
+            >
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="Quantidade" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="20">Top 20</SelectItem>
+                <SelectItem value="50">Top 50</SelectItem>
+                <SelectItem value="100">Top 100</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        )}
+          {canExport("reports") && (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleExportPDF} className="gap-2">
+                <FileText className="w-4 h-4" /> PDF
+              </Button>
+              <Button variant="outline" onClick={handleExportCSV} className="gap-2">
+                <FileSpreadsheet className="w-4 h-4" /> CSV
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
 
       {financial && (
@@ -160,58 +241,6 @@ export default function ReportsPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="h-full">
-          <CardHeader className="h-full flex flex-col justify-center">
-            <CardTitle>Resumo ABC</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 flex flex-col justify-center h-full">
-            <div className="text-sm text-foreground">
-              Classe A: {abcCounts.A} itens · Classe B: {abcCounts.B} itens · Classe C: {abcCounts.C} itens
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Produtos A concentram a maior parte do valor do estoque.
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="h-full">
-          <CardHeader className="h-full flex flex-col justify-center">
-            <CardTitle>Risco de ruptura</CardTitle>
-            <CardDescription>Produtos por nível de risco de falta de estoque.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-2 items-center h-full">
-            <Badge variant="destructive">Crítico: {riskCounters.critical}</Badge>
-            <Badge variant="secondary">Alerta: {riskCounters.warning}</Badge>
-            <Badge variant="default">OK: {riskCounters.ok}</Badge>
-          </CardContent>
-        </Card>
-        <Card className="h-full">
-          <CardHeader className="h-full flex flex-col justify-center">
-            <CardTitle>Itens exibidos</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 flex flex-col justify-center h-full">
-            <div className="text-sm font-medium text-foreground">Itens exibidos:</div>
-            <Select
-              value={itemsPageSize === "all" ? "all" : itemsPageSize.toString()}
-              onValueChange={(val) => setItemsPageSize(val === "all" ? "all" : parseInt(val))}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Quantidade" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="20">Top 20</SelectItem>
-                <SelectItem value="50">Top 50</SelectItem>
-                <SelectItem value="100">Top 100</SelectItem>
-                <SelectItem value="all">Todos</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Defina quantos produtos quer visualizar nas tabelas abaixo.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
       <Tabs defaultValue="abc" className="space-y-3">
         <TabsList className="flex gap-2">
           <TabsTrigger
@@ -236,91 +265,134 @@ export default function ReportsPage() {
             value="forecast"
             className="data-[state=active]:bg-muted data-[state=active]:font-medium data-[state=active]:text-foreground"
           >
-            PreVisão
+            Previsão
           </TabsTrigger>
         </TabsList>
 
+        {/* ABA CURVA ABC */}
         <TabsContent value="abc" className="space-y-3">
-          <Card className="space-y-2">
-            <CardHeader>
-              <CardTitle>Distribuição ABC</CardTitle>
-              <CardDescription>Quantidade de produtos por classe</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-3">
-                <Badge variant="default">A: {abcCounts.A}</Badge>
-                <Badge variant="secondary">B: {abcCounts.B}</Badge>
-                <Badge variant="outline">C: {abcCounts.C}</Badge>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="flex flex-col gap-2">
+            <div>
+              <h3 className="text-lg font-semibold">Distribuição ABC</h3>
+              <p className="text-sm text-muted-foreground">Quantidade de produtos por classe</p>
+            </div>
+          </div>
 
-          <Card className="space-y-2">
-            <CardHeader>
-              <CardTitle>Curva ABC - Detalhada</CardTitle>
-              <CardDescription>
-                Top itens por valor consumido. Use essa lista para focar no que mais impacta o faturamento.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="overflow-x-auto">
-              {paginated.abc.length === 0 ? (
-                emptyMsg
-              ) : (
-                <div className="max-h-[420px] overflow-auto border rounded-md">
-                  <Table>
-                    <TableHeader className="sticky top-0 bg-background">
-                      <TableRow className="border-b">
-                        <TableHead className="text-sm font-medium text-muted-foreground">Produto</TableHead>
-                        <TableHead className="text-sm font-medium text-muted-foreground">Classe</TableHead>
-                        <TableHead className="text-right text-sm font-medium text-muted-foreground">Valor</TableHead>
-                        <TableHead className="text-right text-sm font-medium text-muted-foreground">% Individual</TableHead>
-                        <TableHead className="text-right text-sm font-medium text-muted-foreground">% Acumulado</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {[...paginated.abc]
-                        .sort((a, b) => b.value - a.value)
-                        .map((item, idx) => (
-                          <TableRow
-                            key={item.product_id}
-                            className={`border-b ${idx % 2 === 1 ? "bg-muted/40" : ""}`}
-                          >
-                            <TableCell className="text-foreground">{item.product_name}</TableCell>
-                            <TableCell>
-                              <ClassBadge classification={item.classification} />
-                            </TableCell>
-                            <TableCell className="text-right text-foreground">R$ {item.value.toFixed(2)}</TableCell>
-                            <TableCell className="text-right text-foreground">{item.percentage.toFixed(2)}%</TableCell>
-                            <TableCell className="text-right text-foreground">{item.cumulative_percentage.toFixed(2)}%</TableCell>
-                          </TableRow>
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.3fr)] gap-4">
+            {/* Tabela */}
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle>Curva ABC - Detalhada</CardTitle>
+                <CardDescription>
+                  Top itens por valor consumido. Use essa lista para focar no que mais impacta o faturamento.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                {paginated.abc.length === 0 ? (
+                  emptyMsg
+                ) : (
+                  <div className="max-h-[420px] overflow-auto border rounded-md">
+                    <Table>
+                      <TableHeader className="sticky top-0 bg-background">
+                        <TableRow className="border-b">
+                          <TableHead className="text-sm font-medium text-muted-foreground">Produto</TableHead>
+                          <TableHead className="text-sm font-medium text-muted-foreground">Classe</TableHead>
+                          <TableHead className="text-right text-sm font-medium text-muted-foreground">Valor</TableHead>
+                          <TableHead className="text-right text-sm font-medium text-muted-foreground">% Individual</TableHead>
+                          <TableHead className="text-right text-sm font-medium text-muted-foreground">% Acumulado</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[...paginated.abc]
+                          .sort((a, b) => b.value - a.value)
+                          .map((item, idx) => (
+                            <TableRow
+                              key={item.product_id}
+                              className={`border-b ${idx % 2 === 1 ? "bg-muted/40" : ""}`}
+                            >
+                              <TableCell className="text-foreground">{item.product_name}</TableCell>
+                              <TableCell>
+                                <ClassBadge classification={item.classification} />
+                              </TableCell>
+                              <TableCell className="text-right text-foreground">R$ {item.value.toFixed(2)}</TableCell>
+                              <TableCell className="text-right text-foreground">{item.percentage.toFixed(2)}%</TableCell>
+                              <TableCell className="text-right text-foreground">{item.cumulative_percentage.toFixed(2)}%</TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Card Visual ABC */}
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle>Resumo por Classe</CardTitle>
+                <CardDescription>Participação no valor total</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center justify-center h-full min-h-[300px]">
+                <div className="w-full h-[250px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={abcChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {abcChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
-                    </TableBody>
-                  </Table>
+                      </Pie>
+                      <RechartsTooltip
+                        formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                        contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground))' }}
+                      />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+                <div className="w-full space-y-2 mt-4">
+                  {abcChartData.map((item) => (
+                    <div key={item.name} className="flex justify-between text-sm border-b pb-1 last:border-0">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                        <span>{item.name}</span>
+                      </div>
+                      <div className="text-muted-foreground">
+                        {item.count} itens ({((item.value / abcCounts.totalValue) * 100).toFixed(1)}%)
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
+        {/* ABA ANÁLISE XYZ */}
         <TabsContent value="xyz" className="space-y-3">
-          <Card className="space-y-2">
-            <CardHeader>
-              <CardTitle>Demanda (XYZ)</CardTitle>
-              <CardDescription>
-                Variabilidade da demanda por produto. Itens Z são mais instáveis e exigem mais atenção.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <Card className="w-full sm:w-auto">
-                  <CardContent className="p-4 text-sm text-muted-foreground space-y-1">
-                    <div>X: demanda estável (baixa variação)</div>
-                    <div>Y: demanda moderada</div>
-                    <div>Z: demanda instável (alta variação)</div>
-                    <div>CV: coeficiente de variação da demanda</div>
-                  </CardContent>
-                </Card>
-                <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-2">
+            <div>
+              <h3 className="text-lg font-semibold">Demanda (XYZ)</h3>
+              <p className="text-sm text-muted-foreground">Variabilidade da demanda por produto</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.3fr)] gap-4">
+            {/* Tabela */}
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle>Análise XYZ - Detalhada</CardTitle>
+                <CardDescription>
+                  Itens Z são mais instáveis e exigem mais atenção.
+                </CardDescription>
+                <div className="flex flex-wrap gap-2 mt-2">
                   {["all", "X", "Y", "Z"].map((opt) => (
                     <Button
                       key={opt}
@@ -333,8 +405,8 @@ export default function ReportsPage() {
                     </Button>
                   ))}
                 </div>
-              </div>
-              <div className="overflow-x-auto">
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
                 {paginated.xyz.filter((item) => xyzFilter === "all" || item.classification === xyzFilter).length === 0 ? (
                   emptyMsg
                 ) : (
@@ -367,149 +439,275 @@ export default function ReportsPage() {
                     </Table>
                   </div>
                 )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+              </CardContent>
+            </Card>
 
-        <TabsContent value="turnover" className="space-y-3">
-          <Card className="space-y-2">
-            <CardHeader>
-              <CardTitle>Giro de Estoque</CardTitle>
-              <CardDescription>
-                Relação entre vendas e estoque médio. Mostra o que está girando rápido e o que está parado.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="overflow-x-auto">
-              <div className="max-h-[420px] overflow-auto border rounded-md">
-                {paginated.turnover.length === 0 ? (
-                  emptyMsg
-                ) : (
-                  <Table>
-                    <TableHeader className="sticky top-0 bg-background">
-                      <TableRow className="border-b">
-                        <TableHead className="text-sm font-medium text-muted-foreground">Produto</TableHead>
-                        <TableHead className="text-right text-sm font-medium text-muted-foreground">Taxa de Giro</TableHead>
-                        <TableHead className="text-sm font-medium text-muted-foreground">Categoria</TableHead>
-                        <TableHead className="text-right text-sm font-medium text-muted-foreground">Estoque Médio</TableHead>
-                        <TableHead className="text-right text-sm font-medium text-muted-foreground">Total Vendido</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {[...paginated.turnover]
-                        .sort((a, b) => b.turnover_rate - a.turnover_rate)
-                        .map((item, idx) => (
-                          <TableRow
-                            key={item.product_id}
-                            className={`border-b ${idx % 2 === 1 ? "bg-muted/40" : ""}`}
-                          >
-                            <TableCell className="text-foreground">{item.product_name}</TableCell>
-                            <TableCell className="text-right text-foreground">{item.turnover_rate.toFixed(2)}x</TableCell>
-                            <TableCell>
-                              <TurnoverBadge rate={item.turnover_rate} />
-                            </TableCell>
-                            <TableCell className="text-right text-foreground">{item.avg_inventory.toFixed(1)}</TableCell>
-                            <TableCell className="text-right text-foreground">{item.total_sales}</TableCell>
-                          </TableRow>
+            {/* Card Visual XYZ */}
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle>Distribuição XYZ</CardTitle>
+                <CardDescription>Quantidade de produtos por classe</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center justify-center h-full min-h-[300px]">
+                <div className="w-full h-[250px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={xyzChartData} layout="vertical" margin={{ left: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" hide />
+                      <YAxis dataKey="name" type="category" width={30} />
+                      <RechartsTooltip
+                        cursor={{ fill: 'transparent' }}
+                        contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground))' }}
+                      />
+                      <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                        {xyzChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="w-full space-y-2 mt-4">
+                  {xyzChartData.map((item) => (
+                    <div key={item.name} className="flex justify-between text-sm border-b pb-1 last:border-0">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: item.color }} />
+                        <span>Produtos {item.name}</span>
+                      </div>
+                      <div className="text-muted-foreground font-medium">{item.count}</div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
+        {/* ABA GIRO */}
+        <TabsContent value="turnover" className="space-y-3">
+          <div className="flex flex-col gap-2">
+            <div>
+              <h3 className="text-lg font-semibold">Giro de Estoque</h3>
+              <p className="text-sm text-muted-foreground">Relação entre vendas e estoque médio</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.3fr)] gap-4">
+            {/* Tabela */}
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle>Giro Detalhado</CardTitle>
+                <CardDescription>
+                  Mostra o que está girando rápido e o que está parado.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                <div className="max-h-[420px] overflow-auto border rounded-md">
+                  {paginated.turnover.length === 0 ? (
+                    emptyMsg
+                  ) : (
+                    <Table>
+                      <TableHeader className="sticky top-0 bg-background">
+                        <TableRow className="border-b">
+                          <TableHead className="text-sm font-medium text-muted-foreground">Produto</TableHead>
+                          <TableHead className="text-right text-sm font-medium text-muted-foreground">Taxa de Giro</TableHead>
+                          <TableHead className="text-sm font-medium text-muted-foreground">Categoria</TableHead>
+                          <TableHead className="text-right text-sm font-medium text-muted-foreground">Estoque Médio</TableHead>
+                          <TableHead className="text-right text-sm font-medium text-muted-foreground">Total Vendido</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[...paginated.turnover]
+                          .sort((a, b) => b.turnover_rate - a.turnover_rate)
+                          .map((item, idx) => (
+                            <TableRow
+                              key={item.product_id}
+                              className={`border-b ${idx % 2 === 1 ? "bg-muted/40" : ""}`}
+                            >
+                              <TableCell className="text-foreground">{item.product_name}</TableCell>
+                              <TableCell className="text-right text-foreground">{item.turnover_rate.toFixed(2)}x</TableCell>
+                              <TableCell>
+                                <TurnoverBadge rate={item.turnover_rate} />
+                              </TableCell>
+                              <TableCell className="text-right text-foreground">{item.avg_inventory.toFixed(1)}</TableCell>
+                              <TableCell className="text-right text-foreground">{item.total_sales}</TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Card Visual Giro */}
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle>Top 5 Giro</CardTitle>
+                <CardDescription>Produtos com maior rotatividade</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center justify-center h-full min-h-[300px]">
+                <div className="w-full h-[250px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={turnoverChartData} layout="vertical" margin={{ left: 40 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" hide />
+                      <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 11 }} />
+                      <RechartsTooltip
+                        cursor={{ fill: 'transparent' }}
+                        contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground))' }}
+                      />
+                      <Bar dataKey="rate" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} label={{ position: 'right', fill: 'hsl(var(--foreground))', fontSize: 11, formatter: (val: any) => Number(val).toFixed(1) + 'x' }} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <p className="text-xs text-muted-foreground mt-4 text-center">
+                  Top 5 produtos que mais giram no período atual.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* ABA PREVISÃO */}
         <TabsContent value="forecast" className="space-y-3">
-          <Card className="space-y-2">
-            <CardHeader>
-              <CardTitle>PreVisão de Estoque</CardTitle>
-              <CardDescription>Risco de ruptura e ponto de pedido. Veja o que vai faltar primeiro.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 overflow-x-auto">
-              <div className="flex flex-wrap gap-2">
-                {["all", "CRITICAL", "WARNING", "OK"].map((opt) => (
-                  <Button
-                    key={opt}
-                    variant="outline"
-                    size="sm"
-                    className={forecastFilter === opt ? "bg-muted text-foreground font-medium" : ""}
-                    onClick={() => setForecastFilter(opt as any)}
-                  >
-                    {opt === "all" ? "Todos" : opt === "CRITICAL" ? "Crítico" : opt === "WARNING" ? "Alerta" : "OK"}
-                  </Button>
-                ))}
-              </div>
-              <div className="max-h-[420px] overflow-auto border rounded-md">
-                {[...paginated.forecast]
-                  .filter((item) => forecastFilter === "all" || item.status === forecastFilter).length === 0 ? (
-                  emptyMsg
-                ) : (
-                  <Table>
-                    <TableHeader className="sticky top-0 bg-background">
-                      <TableRow className="border-b">
-                        <TableHead className="text-sm font-medium text-muted-foreground">Produto</TableHead>
-                        <TableHead className="text-right text-sm font-medium text-muted-foreground">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger className="cursor-default text-foreground">Consumo Diário</TooltipTrigger>
-                              <TooltipContent>Média de unidades consumidas por dia.</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </TableHead>
-                        <TableHead className="text-right text-sm font-medium text-muted-foreground">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger className="cursor-default text-foreground">Dias Restantes</TooltipTrigger>
-                              <TooltipContent>Estimativa de quantos dias o estoque atual ainda dura.</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </TableHead>
-                        <TableHead className="text-right text-sm font-medium text-muted-foreground">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger className="cursor-default text-foreground">Ponto de Pedido</TooltipTrigger>
-                              <TooltipContent>Quando o sistema recomenda gerar um novo pedido.</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </TableHead>
-                        <TableHead className="text-center text-sm font-medium text-muted-foreground">Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {[...paginated.forecast]
-                        .filter((item) => forecastFilter === "all" || item.status === forecastFilter)
-                        .sort((a, b) => a.days_until_stockout - b.days_until_stockout)
-                        .map((item, idx) => (
-                          <TableRow
-                            key={item.product_id}
-                            className={`${idx % 2 === 1 ? "bg-muted/40" : ""} ${
-                              item.status === "CRITICAL"
+          <div className="flex flex-col gap-2">
+            <div>
+              <h3 className="text-lg font-semibold">Previsão de Estoque</h3>
+              <p className="text-sm text-muted-foreground">Risco de ruptura e ponto de pedido</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.3fr)] gap-4">
+            {/* Tabela */}
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle>Status de Estoque</CardTitle>
+                <CardDescription>Veja o que vai faltar primeiro.</CardDescription>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {["all", "CRITICAL", "WARNING", "OK"].map((opt) => (
+                    <Button
+                      key={opt}
+                      variant="outline"
+                      size="sm"
+                      className={forecastFilter === opt ? "bg-muted text-foreground font-medium" : ""}
+                      onClick={() => setForecastFilter(opt as any)}
+                    >
+                      {opt === "all" ? "Todos" : opt === "CRITICAL" ? "Crítico" : opt === "WARNING" ? "Alerta" : "OK"}
+                    </Button>
+                  ))}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3 overflow-x-auto">
+                <div className="max-h-[420px] overflow-auto border rounded-md">
+                  {[...paginated.forecast]
+                    .filter((item) => forecastFilter === "all" || item.status === forecastFilter).length === 0 ? (
+                    emptyMsg
+                  ) : (
+                    <Table>
+                      <TableHeader className="sticky top-0 bg-background">
+                        <TableRow className="border-b">
+                          <TableHead className="text-sm font-medium text-muted-foreground">Produto</TableHead>
+                          <TableHead className="text-right text-sm font-medium text-muted-foreground">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger className="cursor-default text-foreground">Consumo Diário</TooltipTrigger>
+                                <TooltipContent>Média de unidades consumidas por dia.</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableHead>
+                          <TableHead className="text-right text-sm font-medium text-muted-foreground">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger className="cursor-default text-foreground">Dias Restantes</TooltipTrigger>
+                                <TooltipContent>Estimativa de quantos dias o estoque atual ainda dura.</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableHead>
+                          <TableHead className="text-right text-sm font-medium text-muted-foreground">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger className="cursor-default text-foreground">Ponto de Pedido</TooltipTrigger>
+                                <TooltipContent>Quando o sistema recomenda gerar um novo pedido.</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableHead>
+                          <TableHead className="text-center text-sm font-medium text-muted-foreground">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[...paginated.forecast]
+                          .filter((item) => forecastFilter === "all" || item.status === forecastFilter)
+                          .sort((a, b) => a.days_until_stockout - b.days_until_stockout)
+                          .map((item, idx) => (
+                            <TableRow
+                              key={item.product_id}
+                              className={`${idx % 2 === 1 ? "bg-muted/40" : ""} ${item.status === "CRITICAL"
                                 ? "bg-red-50 dark:bg-red-950/30"
                                 : item.status === "WARNING"
-                                ? "bg-yellow-50 dark:bg-amber-900/30"
-                                : ""
-                            }`}
-                          >
-                            <TableCell className="text-foreground">{item.product_name}</TableCell>
-                            <TableCell className="text-right text-foreground">{item.daily_usage.toFixed(2)}</TableCell>
-                            <TableCell className="text-right text-foreground">
-                              {item.days_until_stockout > 365
-                                ? "> 1 ano"
-                                : `${item.days_until_stockout.toFixed(0)} dias`}
-                            </TableCell>
-                            <TableCell className="text-right text-foreground">{item.reorder_point}</TableCell>
-                            <TableCell className="text-center">
-                              <StatusBadge status={item.status} />
-                            </TableCell>
-                          </TableRow>
+                                  ? "bg-yellow-50 dark:bg-amber-900/30"
+                                  : ""
+                                }`}
+                            >
+                              <TableCell className="text-foreground">{item.product_name}</TableCell>
+                              <TableCell className="text-right text-foreground">{item.daily_usage.toFixed(2)}</TableCell>
+                              <TableCell className="text-right text-foreground">
+                                {item.days_until_stockout > 365
+                                  ? "> 1 ano"
+                                  : `${item.days_until_stockout.toFixed(0)} dias`}
+                              </TableCell>
+                              <TableCell className="text-right text-foreground">{item.reorder_point}</TableCell>
+                              <TableCell className="text-center">
+                                <StatusBadge status={item.status} />
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Card Visual Previsão */}
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle>Resumo de Status</CardTitle>
+                <CardDescription>Quantidade por nível de risco</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center justify-center h-full min-h-[300px]">
+                <div className="w-full h-[250px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={forecastChartData} layout="vertical" margin={{ left: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" hide />
+                      <YAxis dataKey="name" type="category" width={50} />
+                      <RechartsTooltip
+                        cursor={{ fill: 'transparent' }}
+                        contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground))' }}
+                      />
+                      <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                        {forecastChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="w-full space-y-2 mt-4">
+                  {forecastChartData.map((item) => (
+                    <div key={item.name} className="flex justify-between text-sm border-b pb-1 last:border-0">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: item.color }} />
+                        <span>{item.name}</span>
+                      </div>
+                      <div className="text-muted-foreground font-medium">{item.count} produtos</div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
@@ -552,7 +750,3 @@ function TurnoverBadge({ rate }: { rate: number }) {
   if (rate >= 2) return <Badge variant="secondary">Giro Médio</Badge>;
   return <Badge variant="destructive">Giro Baixo</Badge>;
 }
-
-
-
-

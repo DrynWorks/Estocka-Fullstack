@@ -108,11 +108,11 @@ export function formatDate(
         return '-';
     }
 
-    const options: Intl.DateTimeFormatOptions = {
+    const options: Intl.DateTimeFormatOptions = ({
         short: { day: '2-digit', month: '2-digit', year: 'numeric' },
         medium: { day: '2-digit', month: 'short', year: 'numeric' },
         long: { day: '2-digit', month: 'long', year: 'numeric' },
-    }[format];
+    } as const)[format];
 
     return new Intl.DateTimeFormat('pt-BR', options).format(dateObj);
 }

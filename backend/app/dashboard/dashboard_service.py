@@ -211,26 +211,19 @@ class DashboardService:
         
         Returns:
             {
-                "labels": ["A", "B", "C", "N/A"],
-                "data": [15, 30, 45, 10]  # Count per class
+                "A": 15,
+                "B": 30,
+                "C": 45
             }
         """
-        # This requires ABC classification to be calculated
-        # For now, return a placeholder structure
-        # In a real implementation, you'd have ABC class stored or calculated
+        from app.reports import report_service
         
-        total_products = db.scalar(
-            select(func.count(Product.id)).where(
-                Product.organization_id == organization_id
-            )
-        ) or 0
+        abc_report = report_service.get_abc_analysis(db, organization_id)
         
-        # Placeholder distribution (would calculate actual ABC)
-        return {
-            "labels": ["A", "B", "C"],
-            "data": [
-                int(total_products * 0.2),  # 20% are A
-                int(total_products * 0.3),  # 30% are B
-                int(total_products * 0.5),  # 50% are C
-            ]
-        }
+        counts = {"A": 0, "B": 0, "C": 0}
+        
+        for item in abc_report.items:
+            if item.classification in counts:
+                counts[item.classification] += 1
+                
+        return counts

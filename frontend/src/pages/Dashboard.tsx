@@ -140,54 +140,46 @@ export default function Dashboard() {
                 })}
             </div>
 
-            {/* Charts */}
+            {/* Charts Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <SalesTrendChart days={30} />
                 <TopProductsChart limit={5} />
-            </div>
-
-            {/* ABC Distribution - Full Width */}
-            <ABCDistributionChart />
-
-            {/* Recent Movements */}
-            {canView('movements') && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <TrendingUp className="w-5 h-5 text-primary" />
-                            Últimas Movimentações
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-6">
-                            {recentMovements.length === 0 ? (
-                                <p className="text-sm text-slate-500 text-center py-8">
-                                    Nenhuma movimentação registrada
-                                </p>
-                            ) : (
-                                recentMovements.slice(0, 5).map((movement) => (
+                <ABCDistributionChart />
+                {canView('movements') && recentMovements.length > 0 && (
+                    <Card className="h-full">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <TrendingUp className="w-5 h-5 text-primary" />
+                                Últimas Movimentações
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-4">
+                                {recentMovements.slice(0, 5).map((movement) => (
                                     <div key={movement.id} className="flex items-center">
-                                        <div className={`w-9 h-9 rounded-full flex items-center justify-center mr-4 ${movement.type === 'entrada' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                                        <div className={`w-9 h-9 rounded-full flex items-center justify-center mr-4 ${movement.type === 'entrada' ? 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-300' : 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-300'}`}>
                                             {movement.type === 'entrada' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                                         </div>
                                         <div className="flex-1 space-y-1">
                                             <p className="text-sm font-medium leading-none">
                                                 {movement.product.name}
                                             </p>
-                                            <p className="text-xs text-slate-500">
+                                            <p className="text-xs text-muted-foreground">
                                                 {formatDateTime(movement.created_at)}
                                             </p>
                                         </div>
-                                        <div className={`font-medium ${movement.type === 'entrada' ? 'text-green-600' : 'text-red-600'}`}>
+                                        <div className={`font-medium ${movement.type === 'entrada' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                             {movement.type === 'entrada' ? '+' : '-'}{formatNumber(movement.quantity)}
                                         </div>
                                     </div>
-                                ))
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
+
+
 
             {/* Low Stock Alert */}
             {canView('products') && (overview?.low_stock_products || []).length > 0 && (

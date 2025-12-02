@@ -98,8 +98,9 @@ def get_abc_distribution(
     
     Returns:
         {
-            "labels": ["A", "B", "C"],
-            "data": [15, 30, 45]
+            "A": 15,
+            "B": 30,
+            "C": 45
         }
     """
     return DashboardService.get_abc_distribution(db, org_id)
