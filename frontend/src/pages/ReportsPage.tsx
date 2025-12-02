@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileSpreadsheet, FileText } from "lucide-react";
+import { FileSpreadsheet, FileText, HelpCircle } from "lucide-react";
 import {
   reportService,
   type ABCItem,
@@ -17,6 +17,13 @@ import { exportToCSV, exportToPDF } from "@/utils/export";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   PieChart,
   Pie,
@@ -42,6 +49,8 @@ export default function ReportsPage() {
   const [itemsPageSize, setItemsPageSize] = useState<number | "all">(20);
   const [xyzFilter, setXyzFilter] = useState<"all" | "X" | "Y" | "Z">("all");
   const [forecastFilter, setForecastFilter] = useState<"all" | "CRITICAL" | "WARNING" | "OK">("all");
+  const [activeTab, setActiveTab] = useState("abc");
+  const [showHelpDialog, setShowHelpDialog] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -142,26 +151,101 @@ export default function ReportsPage() {
 
 
   const handleExportCSV = () => {
-    const data = abc.map((i) => ({
-      produto: i.product_name,
-      classe: i.classification,
-      valor: i.value,
-      percentual: i.percentage,
-      percentual_acumulado: i.cumulative_percentage,
-    }));
-    exportToCSV(data, "relatorio_abc");
+    let data: any[] = [];
+    let filename = "relatorio";
+
+    switch (activeTab) {
+      case "abc":
+        data = abc.map((i) => ({
+          produto: i.product_name,
+          classe: i.classification,
+          valor: i.value,
+          percentual: i.percentage,
+          percentual_acumulado: i.cumulative_percentage,
+        }));
+        filename = "relatorio_abc";
+        break;
+      case "xyz":
+        data = xyz.map((i) => ({
+          produto: i.product_name,
+          classe: i.classification,
+          cv: i.cv,
+        }));
+        filename = "relatorio_xyz";
+        break;
+      case "turnover":
+        data = turnover.map((i) => ({
+          produto: i.product_name,
+          taxa_giro: i.turnover_rate,
+          estoque_medio: i.avg_inventory,
+          total_vendido: i.total_sales,
+        }));
+        filename = "relatorio_giro";
+        break;
+      case "forecast":
+        data = forecast.map((i) => ({
+          produto: i.product_name,
+          consumo_diario: i.daily_usage,
+          dias_restantes: i.days_until_stockout,
+          ponto_pedido: i.reorder_point,
+          status: i.status,
+        }));
+        filename = "relatorio_previsao";
+        break;
+    }
+    exportToCSV(data, filename);
   };
 
   const handleExportPDF = () => {
-    const headers = ["Produto", "Classe", "Valor", "% Individual", "% Acumulado"];
-    const rows = abc.slice(0, 20).map((i) => [
-      i.product_name,
-      i.classification,
-      `R$ ${i.value.toFixed(2)}`,
-      `${i.percentage.toFixed(2)}%`,
-      `${i.cumulative_percentage.toFixed(2)}%`,
-    ]);
-    exportToPDF("Relatório ABC", headers, rows, "relatorio_abc");
+    let title = "Relatório";
+    let headers: string[] = [];
+    let rows: any[] = [];
+    let filename = "relatorio";
+
+    switch (activeTab) {
+      case "abc":
+        title = "Relatório ABC";
+        headers = ["Produto", "Classe", "Valor", "% Individual", "% Acumulado"];
+        rows = abc.slice(0, 20).map((i) => [
+          i.product_name,
+          i.classification,
+          `R$ ${i.value.toFixed(2)}`,
+          `${i.percentage.toFixed(2)}%`,
+          `${i.cumulative_percentage.toFixed(2)}%`,
+        ]);
+        filename = "relatorio_abc";
+        break;
+      case "xyz":
+        title = "Relatório XYZ";
+        headers = ["Produto", "Classe", "CV"];
+        rows = xyz.slice(0, 20).map((i) => [i.product_name, i.classification, i.cv.toFixed(3)]);
+        filename = "relatorio_xyz";
+        break;
+      case "turnover":
+        title = "Relatório de Giro";
+        headers = ["Produto", "Taxa de Giro", "Estoque Médio", "Total Vendido"];
+        rows = turnover.slice(0, 20).map((i) => [
+          i.product_name,
+          i.turnover_rate.toFixed(2),
+          i.avg_inventory.toFixed(1),
+          i.total_sales.toString(),
+        ]);
+        filename = "relatorio_giro";
+        break;
+      case "forecast":
+        title = "Relatório de Previsão";
+        headers = ["Produto", "Consumo Diário", "Dias Restantes", "Ponto de Pedido", "Status"];
+        rows = forecast.slice(0, 20).map((i) => [
+          i.product_name,
+          i.daily_usage.toFixed(2),
+          i.days_until_stockout > 365 ? "> 1 ano" : `${i.days_until_stockout.toFixed(0)} dias`,
+          i.reorder_point.toString(),
+          i.status,
+        ]);
+        filename = "relatorio_previsao";
+        break;
+    }
+    exportToPDF(title, headers, rows, filename);
   };
 
   if (loading) {
@@ -199,6 +283,14 @@ export default function ReportsPage() {
               </SelectContent>
             </Select>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowHelpDialog(true)}
+            className="h-9 w-9"
+          >
+            <HelpCircle className="h-5 w-5" />
+          </Button>
           {canExport("reports") && (
             <div className="flex gap-2">
               <Button variant="outline" onClick={handleExportPDF} className="gap-2">
@@ -211,6 +303,49 @@ export default function ReportsPage() {
           )}
         </div>
       </div>
+
+      <Dialog open={showHelpDialog} onOpenChange={setShowHelpDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Guia de Relatórios</DialogTitle>
+            <DialogDescription>
+              Entenda os diferentes tipos de análise disponíveis
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 max-h-[400px] overflow-auto">
+            <div>
+              <h4 className="font-semibold text-foreground mb-1">📊 Curva ABC</h4>
+              <p className="text-sm text-muted-foreground">
+                Classifica produtos por valor consumido. <strong>Classe A</strong> representa ~80% do valor com ~20% dos itens (foco máximo),
+                <strong> Classe B</strong> ~15% do valor, e <strong>Classe C</strong> os demais. Use para priorizar compras e gestão.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-foreground mb-1">📈 Análise XYZ</h4>
+              <p className="text-sm text-muted-foreground">
+                Mede variabilidade da demanda. <strong>X</strong> = demanda estável (previsível),
+                <strong> Y</strong> = demanda moderada, <strong>Z</strong> = demanda irregular (requer atenção extra).
+                Produtos Z precisam de estoque de segurança maior.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-foreground mb-1">🔄 Giro de Estoque</h4>
+              <p className="text-sm text-muted-foreground">
+                Indica quantas vezes o estoque "gira" no período. <strong>Alto giro (&gt;4x)</strong> = produtos vendem rápido,
+                <strong> Giro médio (2-4x)</strong> = rotatividade normal, <strong>Baixo giro (&lt;2x)</strong> = produtos parados (risco de obsolescência).
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-foreground mb-1">⚠️ Previsão de Estoque</h4>
+              <p className="text-sm text-muted-foreground">
+                Calcula quando produtos podem faltar. <strong>Crítico</strong> = menos de 7 dias,
+                <strong> Alerta</strong> = 7-30 dias, <strong>OK</strong> = mais de 30 dias.
+                O "Ponto de Pedido" indica quando encomendar mais unidades.
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {financial && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -241,7 +376,7 @@ export default function ReportsPage() {
         </div>
       )}
 
-      <Tabs defaultValue="abc" className="space-y-3">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3">
         <TabsList className="flex gap-2">
           <TabsTrigger
             value="abc"
@@ -449,7 +584,7 @@ export default function ReportsPage() {
                 <CardDescription>Quantidade de produtos por classe</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col items-center justify-center h-full min-h-[300px]">
-                <div className="w-full h-[250px]">
+                <div className="w-full h-[320px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={xyzChartData} layout="vertical" margin={{ left: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} />
@@ -547,7 +682,7 @@ export default function ReportsPage() {
                 <CardDescription>Produtos com maior rotatividade</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col items-center justify-center h-full min-h-[300px]">
-                <div className="w-full h-[250px]">
+                <div className="w-full h-[350px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={turnoverChartData} layout="vertical" margin={{ left: 40 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} />
@@ -676,7 +811,7 @@ export default function ReportsPage() {
                 <CardDescription>Quantidade por nível de risco</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col items-center justify-center h-full min-h-[300px]">
-                <div className="w-full h-[250px]">
+                <div className="w-full h-[320px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={forecastChartData} layout="vertical" margin={{ left: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} />
