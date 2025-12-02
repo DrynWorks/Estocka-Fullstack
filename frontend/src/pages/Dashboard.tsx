@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { reportService, type StockOverview } from '@/services/reportService';
@@ -89,8 +89,8 @@ export default function Dashboard() {
             title: 'Estoque Baixo',
             value: overview?.low_stock_products.length || 0,
             icon: AlertTriangle,
-            color: 'text-yellow-600',
-            bgColor: 'bg-yellow-100',
+            color: 'text-amber-600 dark:text-amber-300',
+            bgColor: 'bg-amber-100 dark:bg-amber-900/40',
             link: '/products?stockStatus=low_stock',
             resource: 'products'
         },
@@ -191,25 +191,25 @@ export default function Dashboard() {
 
             {/* Low Stock Alert */}
             {canView('products') && (overview?.low_stock_products || []).length > 0 && (
-                <Card className="border-yellow-200 bg-yellow-50/50">
+                <Card className="border-amber-200 bg-amber-50 dark:border-amber-700/50 dark:bg-amber-900/20">
                     <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle className="flex items-center gap-2 text-yellow-800">
+                        <CardTitle className="flex items-center gap-2 text-amber-800 dark:text-amber-100">
                             <AlertTriangle className="w-5 h-5" />
                             Atenção: Produtos com Estoque Baixo
                         </CardTitle>
-                        <Link to="/products?stockStatus=low_stock" className="text-sm text-yellow-800 hover:underline font-medium">
+                        <Link to="/products?stockStatus=low_stock" className="text-sm text-amber-800 dark:text-amber-100 hover:underline font-medium">
                             Ver todos
                         </Link>
                     </CardHeader>
                     <CardContent>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {(overview?.low_stock_products || []).slice(0, 6).map((product: any) => (
-                                <div key={product.id} className="bg-white p-3 rounded-lg border border-yellow-100 shadow-sm flex justify-between items-center">
+                                <div key={product.id} className="bg-white p-3 rounded-lg border border-amber-100 dark:border-amber-700/50 shadow-sm flex justify-between items-center">
                                     <div>
                                         <p className="font-medium text-slate-900">{product.name}</p>
                                         <p className="text-xs text-slate-500">SKU: {product.sku}</p>
                                     </div>
-                                    <Badge variant="outline" className="text-yellow-700 border-yellow-200 bg-yellow-50">
+                                    <Badge variant="outline" className="text-amber-700 dark:text-amber-100 border-yellow-200 bg-amber-50 dark:bg-amber-900/30">
                                         {product.quantity} un.
                                     </Badge>
                                 </div>
@@ -221,3 +221,7 @@ export default function Dashboard() {
         </div>
     );
 }
+
+
+
+
