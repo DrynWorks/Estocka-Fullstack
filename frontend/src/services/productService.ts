@@ -57,10 +57,11 @@ export const productService = {
     },
 
     async search(params: {
-        name?: string;
-        sku?: string;
+        search?: string;
         category_id?: number;
-        low_stock?: boolean;
+        stock_status?: 'out' | 'low' | 'ok';
+        price_min?: number;
+        price_max?: number;
     }): Promise<Product[]> {
         try {
             const response = await api.get('/products/search', { params });

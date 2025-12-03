@@ -32,7 +32,10 @@ class DashboardService:
                 func.sum(Product.quantity * Product.cost_price).label("total_value"),
                 func.count(Product.id).label("total_items"),
                 func.sum(Product.quantity).label("total_quantity")
-            ).where(Product.organization_id == organization_id)
+            ).where(
+                Product.organization_id == organization_id,
+                Product.is_deleted == False
+            )
         ).first()
         
         return {
@@ -57,7 +60,8 @@ class DashboardService:
         products = db.execute(
             select(Product).where(
                 Product.organization_id == organization_id,
-                Product.price > 0  # Avoid division by zero
+                Product.price > 0,  # Avoid division by zero
+                Product.is_deleted == False
             )
         ).scalars().all()
         
@@ -94,14 +98,16 @@ class DashboardService:
         """
         total_products = db.scalar(
             select(func.count(Product.id)).where(
-                Product.organization_id == organization_id
+                Product.organization_id == organization_id,
+                Product.is_deleted == False
             )
         ) or 0
         
         out_of_stock = db.scalar(
             select(func.count(Product.id)).where(
                 Product.organization_id == organization_id,
-                Product.quantity == 0
+                Product.quantity == 0,
+                Product.is_deleted == False
             )
         ) or 0
         
@@ -192,7 +198,8 @@ class DashboardService:
             ).join(Movement, Movement.product_id == Product.id)
             .where(
                 Product.organization_id == organization_id,
-                Movement.type == MovementType.SAIDA  # Only outbound
+                Movement.type == MovementType.SAIDA,  # Only outbound
+                Product.is_deleted == False
             )
             .group_by(Product.id, Product.name)
             .order_by(func.sum(Movement.quantity).desc())

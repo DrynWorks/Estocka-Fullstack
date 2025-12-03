@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from sqlalchemy import Column, ForeignKey, Integer, Numeric, String, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.categories.category_model import CategoryPublic
@@ -29,8 +29,14 @@ class Product(Base):
     price = Column(Numeric(10, 2), nullable=False, default=0)
     cost_price = Column(Numeric(10, 2), nullable=False, default=0)
     quantity = Column(Integer, nullable=False, default=0)
-    alert_level = Column(Integer, nullable=False, default=0)
+    alert_level = Column(Integer, nullable=False, default=10)
     lead_time = Column(Integer, nullable=False, default=0)  # Days to restock
+
+    # Soft Delete Columns
+    is_deleted = Column(Boolean, default=False, nullable=False, index=True)
+    deleted_at = Column(DateTime, nullable=True)
+    deleted_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
 
@@ -132,3 +138,14 @@ class ProductPublic(BaseModel):
     alert_level: int
     lead_time: int
     category: CategoryPublic
+
+
+class ProductFilter(BaseModel):
+    """Schema for filtering products."""
+    name: Optional[str] = None
+    sku: Optional[str] = None
+    category_id: Optional[int] = None
+    min_price: Optional[Decimal] = None
+    max_price: Optional[Decimal] = None
+    low_stock_only: bool = False
+    in_stock_only: bool = False

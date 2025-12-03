@@ -41,8 +41,11 @@ def build_product_filters(
         )
         products = db.scalars(stmt).all()
     """
-    # Base query - always filter by organization
-    stmt = select(Product).where(Product.organization_id == organization_id)
+    # Base query - always filter by organization and not deleted
+    stmt = select(Product).where(
+        Product.organization_id == organization_id,
+        Product.is_deleted == False
+    )
     
     # Stock status filter
     if stock_status == "out":

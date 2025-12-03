@@ -16,7 +16,8 @@ def get_product_by_id(db: Session, product_id: int, organization_id: int):
         db.query(product_model.Product)
         .filter(
             product_model.Product.id == product_id,
-            product_model.Product.organization_id == organization_id
+            product_model.Product.organization_id == organization_id,
+            product_model.Product.is_deleted == False
         )
         .first()
     )
@@ -28,7 +29,8 @@ def get_product_by_sku(db: Session, sku: str, organization_id: int):
         db.query(product_model.Product)
         .filter(
             func.lower(product_model.Product.sku) == sku.lower(),
-            product_model.Product.organization_id == organization_id
+            product_model.Product.organization_id == organization_id,
+            product_model.Product.is_deleted == False
         )
         .first()
     )
@@ -38,7 +40,10 @@ def list_products(db: Session, organization_id: int) -> List[product_model.Produ
     """List all products for an organization."""
     return (
         db.query(product_model.Product)
-        .filter(product_model.Product.organization_id == organization_id)
+        .filter(
+            product_model.Product.organization_id == organization_id,
+            product_model.Product.is_deleted == False
+        )
         .all()
     )
 
@@ -52,7 +57,10 @@ def search_products(
     low_stock_only: bool = False,
 ) -> List[product_model.Product]:
     """Search products with flexible filters."""
-    query = db.query(product_model.Product).filter(product_model.Product.organization_id == organization_id)
+    query = db.query(product_model.Product).filter(
+        product_model.Product.organization_id == organization_id,
+        product_model.Product.is_deleted == False
+    )
 
     if name:
         pattern = f"%{name}%"
@@ -102,10 +110,17 @@ def update_product(
     return db_product
 
 
-def delete_product(db: Session, db_product: product_model.Product):
-    """Delete the given product."""
-    db.delete(db_product)
+def delete_product(db: Session, db_product: product_model.Product, user_id: Optional[int] = None):
+    """Soft delete the given product."""
+    from datetime import datetime
+    
+    db_product.is_deleted = True
+    db_product.deleted_at = datetime.utcnow()
+    db_product.deleted_by_id = user_id
+    
+    db.add(db_product)
     db.commit()
+    db.refresh(db_product)
     return db_product
 
 
@@ -115,7 +130,8 @@ def get_low_stock_products(db: Session, organization_id: int) -> List[product_mo
         db.query(product_model.Product)
         .filter(
             product_model.Product.quantity <= product_model.Product.alert_level,
-            product_model.Product.organization_id == organization_id
+            product_model.Product.organization_id == organization_id,
+            product_model.Product.is_deleted == False
         )
         .all()
     )
@@ -127,7 +143,8 @@ def get_out_of_stock_products(db: Session, organization_id: int) -> List[product
         db.query(product_model.Product)
         .filter(
             product_model.Product.quantity == 0,
-            product_model.Product.organization_id == organization_id
+            product_model.Product.organization_id == organization_id,
+            product_model.Product.is_deleted == False
         )
         .all()
     )
@@ -141,7 +158,10 @@ def get_products_by_category(db: Session, organization_id: int):
             func.sum(product_model.Product.quantity).label("total_quantity"),
             func.sum(product_model.Product.quantity * product_model.Product.price).label("total_value"),
         )
-        .filter(product_model.Product.organization_id == organization_id)
+        .filter(
+            product_model.Product.organization_id == organization_id,
+            product_model.Product.is_deleted == False
+        )
         .group_by(product_model.Product.category_id)
         .all()
     )

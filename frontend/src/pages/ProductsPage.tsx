@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -87,6 +87,8 @@ export default function ProductsPage() {
     const [search, setSearch] = useState<string>('');
     const [categoryFilter, setCategoryFilter] = useState<string>('all');
     const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out' | 'ok'>('all');
+    const [priceMin, setPriceMin] = useState<string>('');
+    const [priceMax, setPriceMax] = useState<string>('');
     const [currentPage, setCurrentPage] = useState<number>(1);
     const [itemsPerPage, setItemsPerPage] = useState<number>(12);
     const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
@@ -104,11 +106,22 @@ export default function ProductsPage() {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [cats, prods] = await Promise.all([
-                categoryService.getAll(),
-                productService.getAll(),
-            ]);
-            setCategories(cats);
+            // Load categories only once if empty
+            if (categories.length === 0) {
+                const cats = await categoryService.getAll();
+                setCategories(cats);
+            }
+
+            // Build filter params
+            const params: any = {};
+            if (search) params.search = search;
+            if (categoryFilter !== 'all') params.category_id = Number(categoryFilter);
+            if (stockFilter !== 'all') params.stock_status = stockFilter;
+            if (priceMin) params.price_min = Number(priceMin);
+            if (priceMax) params.price_max = Number(priceMax);
+
+            // Fetch filtered products from backend
+            const prods = await productService.search(params);
             setProducts(prods);
             setCurrentPage(1);
         } catch (error) {
@@ -118,9 +131,18 @@ export default function ProductsPage() {
         }
     };
 
+    // Initial load
     useEffect(() => {
         loadData();
     }, []);
+
+    // Reload when filters change (debounced for text search)
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            loadData();
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [search, categoryFilter, stockFilter, priceMin, priceMax]);
 
     const resetForm = () => {
         setFormData({
@@ -199,23 +221,8 @@ export default function ProductsPage() {
         }
     };
 
-    const filteredProducts = useMemo(() => {
-        const term = search.toLowerCase();
-        return products.filter((p) => {
-            const matchesTerm =
-                !term ||
-                p.name.toLowerCase().includes(term) ||
-                p.sku.toLowerCase().includes(term);
-            const matchesCategory =
-                categoryFilter === 'all' || p.category.id.toString() === categoryFilter;
-            const matchesStock =
-                stockFilter === 'all' ||
-                (stockFilter === 'out' && p.quantity === 0) ||
-                (stockFilter === 'low' && p.quantity > 0 && p.quantity <= p.alert_level) ||
-                (stockFilter === 'ok' && p.quantity > p.alert_level);
-            return matchesTerm && matchesCategory && matchesStock;
-        });
-    }, [products, search, categoryFilter, stockFilter]);
+    // Client-side pagination only (since backend returns all filtered results for now)
+    const filteredProducts = products; // Products are already filtered by backend
 
     const totalPages = Math.max(1, Math.ceil(filteredProducts.length / itemsPerPage));
     const page = Math.min(currentPage, totalPages);
@@ -507,6 +514,23 @@ export default function ProductsPage() {
                                     <SelectItem value="ok">Saudável</SelectItem>
                                 </SelectContent>
                             </Select>
+                        </div>
+                        <div className="flex flex-wrap gap-2 items-center">
+                            <Input
+                                placeholder="Min R$"
+                                type="number"
+                                className="w-24"
+                                value={priceMin}
+                                onChange={(e) => setPriceMin(e.target.value)}
+                            />
+                            <span className="text-muted-foreground">-</span>
+                            <Input
+                                placeholder="Max R$"
+                                type="number"
+                                className="w-24"
+                                value={priceMax}
+                                onChange={(e) => setPriceMax(e.target.value)}
+                            />
                         </div>
                         <div className="flex gap-2">
                             <Select

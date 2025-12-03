@@ -225,7 +225,7 @@ def delete_product(
         organization_id=organization_id,
     )
     
-    return product_repository.delete_product(db, db_product=db_product)
+    return product_repository.delete_product(db, db_product=db_product, user_id=user_id)
 
 
 def get_low_stock_products(db: Session, organization_id: int) -> list[product_model.Product]:
