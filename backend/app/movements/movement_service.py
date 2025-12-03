@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from contextlib import nullcontext
 
-from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.products import product_repository
 from app import constants
 from app.audit import audit_service
 from app.audit.audit_model import ActionType, EntityType
+from app.exceptions import ProductNotFoundException, InsufficientStockException, NotFoundException
+from app.products import product_repository
 from . import movement_model, movement_repository
 
 
@@ -53,15 +53,16 @@ def create_movement(
     with transaction_ctx:
         product = product_repository.get_product_by_id(db, product_id=movement.product_id, organization_id=organization_id)
         if product is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+            raise ProductNotFoundException(movement.product_id)
 
         # NOTE: When using PostgreSQL, consider issuing a SELECT ... FOR UPDATE here to lock the product row.
 
         if movement.type == movement_model.MovementType.SAIDA:
             if product.quantity < movement.quantity:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Insufficient stock for the requested movement",
+                raise InsufficientStockException(
+                    product_name=product.name,
+                    available=product.quantity,
+                    requested=movement.quantity
                 )
             product.quantity -= movement.quantity
         else:
@@ -164,7 +165,7 @@ def get_movement(db: Session, movement_id: int, organization_id: int) -> movemen
     """
     db_movement = movement_repository.get_movement_by_id(db, movement_id=movement_id, organization_id=organization_id)
     if db_movement is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movement not found")
+        raise NotFoundException("Movement", movement_id)
     return db_movement
 
 

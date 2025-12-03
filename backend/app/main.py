@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+import logging
+from datetime import datetime
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -14,6 +20,8 @@ from app.categories import category_controller
 from app.config import get_settings
 from app.dashboard import dashboard_controller
 from app.database import Base, SessionLocal, engine
+from app.exceptions import EstockaException
+from app.logging_config import setup_logging
 from app.movements import movement_controller
 from app.organizations import organization_controller
 from app.products import product_controller
@@ -22,6 +30,10 @@ from app.roles import role_controller
 from app.roles.role_model import Role
 from app.users import user_controller, user_repository
 from app.users.user_model import User, UserCreate
+
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 # Application settings control optional bootstrap steps.
 settings = get_settings()
@@ -134,6 +146,11 @@ app = FastAPI(
     description="Backend for the Estocka stock management system.",
 )
 
+# Configure rate limiting
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.frontend_url],
@@ -154,11 +171,55 @@ app.include_router(report_controller.router)
 app.include_router(audit_controller.router)
 
 
+# ==================== Exception Handlers ====================
+
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from app.exceptions import EstockaException
+
+
+@app.exception_handler(EstockaException)
+async def estocka_exception_handler(request: Request, exc: EstockaException) -> JSONResponse:
+    """Handler para exceções customizadas do Estocka."""
+    logger.warning(
+        f"EstockaException: {exc.error_code} - {exc.detail} - Path: {request.url.path}"
+    )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "detail": exc.detail,
+            "error_code": exc.error_code,
+            "timestamp": exc.timestamp,
+        },
+    )
+
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Handler para exceções genéricas não tratadas."""
+    logger.error(
+        f"Erro não tratado: {type(exc).__name__} - {str(exc)} - Path: {request.url.path}",
+        exc_info=True,
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Erro interno do servidor. Contate o suporte.",
+            "error_code": "INTERNAL_SERVER_ERROR",
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+    )
+
+
+
 @app.on_event("startup")
 def on_startup() -> None:
     """Execute startup routines."""
+    logger.info("🚀 Estocka API iniciando...")
     if settings.seed_on_start:
+        logger.info("Executando seed de dados iniciais")
         seed_initial_data()
+    logger.info("✅ Estocka API pronta para receber requisições")
 
 
 if __name__ == "__main__":

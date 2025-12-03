@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
-from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.categories import category_repository
 from app.audit import audit_service
 from app.audit.audit_model import ActionType, EntityType
+from app.categories import category_repository
+from app.exceptions import (
+    DuplicateSKUException,
+    ProductNotFoundException,
+    CategoryNotFoundException,
+    ValidationException,
+)
 from . import product_model, product_repository
 
 
@@ -36,13 +41,10 @@ def create_product(
         HTTPException(404): If the category_id does not exist.
     """
     if product_repository.get_product_by_sku(db, sku=product.sku, organization_id=organization_id):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Product SKU already exists",
-        )
+        raise DuplicateSKUException(product.sku)
 
     if category_repository.get_category_by_id(db, category_id=product.category_id, organization_id=organization_id) is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+        raise CategoryNotFoundException(product.category_id)
 
     created_product = product_repository.create_product(db, product, organization_id=organization_id)
     
@@ -91,7 +93,7 @@ def get_product(db: Session, product_id: int, organization_id: int) -> product_m
     """
     db_product = product_repository.get_product_by_id(db, product_id, organization_id=organization_id)
     if db_product is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+        raise ProductNotFoundException(product_id)
     return db_product
 
 
@@ -162,22 +164,16 @@ def update_product(
     db_product = get_product(db, product_id, organization_id=organization_id)
 
     if product_in.quantity is not None and product_in.quantity != db_product.quantity:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Stock changes must be performed via movements",
-        )
+        raise ValidationException("Stock changes must be performed via movements")
 
     if product_in.sku and product_in.sku != db_product.sku:
         existing = product_repository.get_product_by_sku(db, sku=product_in.sku, organization_id=organization_id)
         if existing and existing.id != db_product.id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Product SKU already exists",
-            )
+            raise DuplicateSKUException(product_in.sku)
 
     if product_in.category_id is not None and product_in.category_id != db_product.category_id:
         if category_repository.get_category_by_id(db, category_id=product_in.category_id, organization_id=organization_id) is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+            raise CategoryNotFoundException(product_in.category_id)
 
     updated_product = product_repository.update_product(db, db_product=db_product, product_in=product_in)
     

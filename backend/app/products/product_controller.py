@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import List
 
 from fastapi import APIRouter, Depends, Query, status
@@ -11,6 +12,8 @@ from app.auth.auth_service import get_current_user, require_role
 from app.database import get_db
 from app.users.user_model import User
 from . import product_model, product_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/products",
@@ -31,12 +34,17 @@ def create_product(
     current_user: User = Depends(get_current_user)
 ):
     """Create a new product (admin only)."""
-    return product_service.create_product(
+    logger.info(f"Criando produto: {product.name} (SKU: {product.sku}) - User: {current_user.email}")
+    
+    result = product_service.create_product(
         db,
         product,
         organization_id=current_user.organization_id,
         user_id=current_user.id
     )
+    
+    logger.info(f"✅ Produto criado: ID {result.id} - {result.name}")
+    return result
 
 
 @router.get("/", response_model=List[product_model.ProductPublic])
@@ -131,13 +139,18 @@ def update_product(
     current_user: User = Depends(get_current_user)
 ):
     """Update product metadata without touching stock levels."""
-    return product_service.update_product(
+    logger.info(f"Atualizando produto ID {product_id} - User: {current_user.email}")
+    
+    result = product_service.update_product(
         db,
         product_id=product_id,
         product_in=product_in,
         organization_id=current_user.organization_id,
         user_id=current_user.id
     )
+    
+    logger.info(f"✅ Produto atualizado: ID {product_id}")
+    return result
 
 
 @router.delete(
@@ -151,9 +164,14 @@ def delete_product(
     current_user: User = Depends(get_current_user)
 ):
     """Delete a product (admin only)."""
-    return product_service.delete_product(
+    logger.warning(f"Deletando produto ID {product_id} - User: {current_user.email}")
+    
+    result = product_service.delete_product(
         db,
         product_id=product_id,
         organization_id=current_user.organization_id,
         user_id=current_user.id
     )
+    
+    logger.info(f"✅ Produto deletado: ID {product_id}")
+    return result

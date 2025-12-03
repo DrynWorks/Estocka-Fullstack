@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from typing import List
 
@@ -12,6 +13,8 @@ from app.auth.auth_service import get_current_user, require_role
 from app.database import get_db
 from app.users.user_model import User
 from . import movement_model, movement_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/movements",
@@ -31,12 +34,20 @@ def create_movement(
     current_user: User = Depends(require_role("admin", "user")),
 ):
     """Register a stock movement (admin only)."""
-    return movement_service.create_movement(
+    logger.info(
+        f"Criando movimentação: Produto ID {movement.product_id}, "
+        f"Tipo: {movement.type}, Qtd: {movement.quantity} - User: {current_user.email}"
+    )
+    
+    result = movement_service.create_movement(
         db,
         movement,
         organization_id=current_user.organization_id,
         created_by_user_id=current_user.id,
     )
+    
+    logger.info(f"✅ Movimentação criada: ID {result.id} - {result.type}")
+    return result
 
 
 @router.post(
@@ -50,12 +61,17 @@ def revert_movement(
     current_user: User = Depends(require_role("admin", "user")),
 ):
     """Generate the reverse movement for the provided identifier (admin only)."""
-    return movement_service.revert_movement(
+    logger.warning(f"Revertendo movimentação ID {movement_id} - User: {current_user.email}")
+    
+    result = movement_service.revert_movement(
         db,
         movement_id,
         organization_id=current_user.organization_id,
         created_by_user_id=current_user.id,
     )
+    
+    logger.info(f"✅ Movimentação revertida:ID original {movement_id}, novo ID {result.id}")
+    return result
 
 
 @router.put("/{movement_id}")

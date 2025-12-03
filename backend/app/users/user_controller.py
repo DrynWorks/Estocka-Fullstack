@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import List
 
 from fastapi import APIRouter, Depends, status
@@ -10,6 +11,8 @@ from sqlalchemy.orm import Session
 from app.auth.auth_service import get_current_user, require_role
 from app.database import get_db
 from . import user_model, user_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/users",
@@ -30,9 +33,14 @@ def create_user(
     current_user: user_model.User = Depends(get_current_user)
 ):
     """Create a new user (admin only)."""
+    logger.info(f"Criando usuário: {user.email} - Por: {current_user.email}")
+    
     # Force organization_id to be the same as the current user's organization
     user.organization_id = current_user.organization_id
-    return user_service.create_new_user(db=db, user=user)
+    result = user_service.create_new_user(db=db, user=user)
+    
+    logger.info(f"✅ Usuário criado: ID {result.id} - {result.email}")
+    return result
 
 
 @router.get(
@@ -63,9 +71,19 @@ def read_user(user_id: int, db: Session = Depends(get_db)):
     response_model=user_model.UserPublic,
     dependencies=[Depends(require_role("admin"))],
 )
-def update_user(user_id: int, user: user_model.UserUpdate, db: Session = Depends(get_db)):
+def update_user(
+    user_id: int, 
+    user: user_model.UserUpdate, 
+    db: Session = Depends(get_db),
+    current_user: user_model.User = Depends(get_current_user)
+):
     """Update a user (admin only)."""
-    return user_service.update_existing_user(db=db, user_id=user_id, user_in=user)
+    logger.info(f"Atualizando usuário ID {user_id} - Por: {current_user.email}")
+    
+    result = user_service.update_existing_user(db=db, user_id=user_id, user_in=user)
+    
+    logger.info(f"✅ Usuário atualizado: ID {user_id}")
+    return result
 
 
 @router.delete(
@@ -73,6 +91,15 @@ def update_user(user_id: int, user: user_model.UserUpdate, db: Session = Depends
     response_model=user_model.UserPublic,
     dependencies=[Depends(require_role("admin"))],
 )
-def delete_user(user_id: int, db: Session = Depends(get_db)):
+def delete_user(
+    user_id: int, 
+    db: Session = Depends(get_db),
+    current_user: user_model.User = Depends(get_current_user)
+):
     """Delete a user (admin only)."""
-    return user_service.delete_user_by_id(db=db, user_id=user_id)
+    logger.warning(f"Deletando usuário ID {user_id} - Por: {current_user.email}")
+    
+    result = user_service.delete_user_by_id(db=db, user_id=user_id)
+    
+    logger.info(f"✅ Usuário deletado: ID {user_id}")
+    return result
