@@ -57,6 +57,21 @@ def read_users(
 
 
 @router.get(
+    "/check-email",
+    response_model=dict,
+    dependencies=[Depends(require_role("admin"))],
+)
+def check_email_exists(
+    email: str,
+    db: Session = Depends(get_db),
+    current_user: user_model.User = Depends(get_current_user)
+):
+    """Check if email already exists in the system (admin only)."""
+    exists = user_service.check_email_exists(db, email=email, organization_id=current_user.organization_id)
+    return {"exists": exists}
+
+
+@router.get(
     "/{user_id}",
     response_model=user_model.UserPublic,
     dependencies=[Depends(require_role("admin"))],

@@ -171,8 +171,8 @@ export default function MovementsPage() {
             <div className="space-y-6">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Movimentações</h1>
-                        <p className="text-slate-600 dark:text-slate-400 mt-1">Carregando...</p>
+                        <h1 className="text-3xl font-bold text-foreground">Movimentações</h1>
+                        <p className="text-muted-foreground mt-1">Carregando...</p>
                     </div>
                 </div>
                 <Card>
@@ -191,8 +191,8 @@ export default function MovementsPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Movimentações</h1>
-                    <p className="text-slate-600 dark:text-slate-400 mt-1">Registre entradas e saídas de estoque</p>
+                    <h1 className="text-3xl font-bold text-foreground">Movimentações</h1>
+                    <p className="text-muted-foreground mt-1">Registre entradas e saídas de estoque</p>
                 </div>
                 <div className="flex gap-2">
                     {canExport('movements') && (
@@ -335,7 +335,7 @@ export default function MovementsPage() {
                     </Table>
                     {filteredMovements.length > itemsPerPage && (
                         <div className="flex items-center justify-between px-2 py-4">
-                            <div className="text-sm text-slate-600 dark:text-slate-400">
+                            <div className="text-sm text-muted-foreground">
                                 Mostrando {startIndex + 1} a {Math.min(endIndex, filteredMovements.length)} de {filteredMovements.length} movimentações
                             </div>
                             <Pagination>

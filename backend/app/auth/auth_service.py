@@ -47,7 +47,7 @@ def signup_new_organization(
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+            detail="Email já cadastrado"
         )
     
     # 2. Create organization slug from name
@@ -114,7 +114,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     """Resolve the current authenticated user from the provided JWT token."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail="Não foi possível validar as credenciais",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
@@ -143,7 +143,7 @@ def require_role(*allowed_roles: str) -> Callable[[User], User]:
         if not current_user.role or current_user.role.name not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Operation not permitted for this user role",
+                detail="Operação não permitida para esta função de usuário",
             )
         return current_user
 

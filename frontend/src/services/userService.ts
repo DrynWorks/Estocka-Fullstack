@@ -73,4 +73,16 @@ export const userService = {
             throw error;
         }
     },
+
+    async checkEmailExists(email: string): Promise<boolean> {
+        try {
+            const response = await api.get('/users/check-email', {
+                params: { email }
+            });
+            return response.data.exists;
+        } catch (error) {
+            console.error('Error checking email:', error);
+            return false; // Assume não existe em caso de erro
+        }
+    },
 };

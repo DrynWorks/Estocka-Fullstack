@@ -47,7 +47,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Search, Pencil, Trash2, Download, FileText, FileSpreadsheet, Loader2, User as UserIcon } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Download, FileText, FileSpreadsheet, Loader2, User as UserIcon, CheckCircle2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { EmptyState } from '@/components/EmptyState';
 import { TableSkeleton } from '@/components/TableSkeleton';
@@ -65,6 +65,9 @@ export default function UsersPage() {
     const [isSaving, setIsSaving] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+    const [emailError, setEmailError] = useState('');
+    const [emailValid, setEmailValid] = useState(false);
 
     const [formData, setFormData] = useState<UserCreate>({
         full_name: '',
@@ -76,6 +79,39 @@ export default function UsersPage() {
     useEffect(() => {
         loadData();
     }, []);
+
+    // Email validation with debounce
+    useEffect(() => {
+        const checkEmail = async () => {
+            // Skip if empty, editing same user, or too short
+            if (!formData.email || formData.email === editingUser?.email || formData.email.length < 3) {
+                setEmailError('');
+                setEmailValid(false);
+                return;
+            }
+
+            setIsCheckingEmail(true);
+            try {
+                const exists = await userService.checkEmailExists(formData.email);
+                if (exists) {
+                    setEmailError('Email já está em uso');
+                    setEmailValid(false);
+                } else {
+                    setEmailError('');
+                    setEmailValid(true);
+                }
+            } catch (error) {
+                console.error('Erro ao verificar email:', error);
+                setEmailError('');
+                setEmailValid(false);
+            } finally {
+                setIsCheckingEmail(false);
+            }
+        };
+
+        const timer = setTimeout(checkEmail, 500);
+        return () => clearTimeout(timer);
+    }, [formData.email, editingUser]);
 
     const loadData = async () => {
         try {
@@ -98,6 +134,12 @@ export default function UsersPage() {
         try {
             if (!formData.full_name || !formData.email || !formData.role_id) {
                 toast.error('Preencha todos os campos obrigatórios');
+                return;
+            }
+
+            // Email validation
+            if (!editingUser && emailError) {
+                toast.error('Corrija os erros antes de continuar');
                 return;
             }
 
@@ -171,6 +213,8 @@ export default function UsersPage() {
             password: '',
             role_id: 0
         });
+        setEmailError('');
+        setEmailValid(false);
     };
 
     const handleExportPDF = () => {
@@ -224,8 +268,8 @@ export default function UsersPage() {
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Usuários</h1>
-                    <p className="text-slate-600 dark:text-slate-400 mt-1">Gerencie o acesso ao sistema</p>
+                    <h1 className="text-3xl font-bold text-foreground">Usuários</h1>
+                    <p className="text-muted-foreground mt-1">Gerencie o acesso ao sistema</p>
                 </div>
                 <div className="flex gap-2">
                     {canExport('users') && (
@@ -332,7 +376,7 @@ export default function UsersPage() {
                                                         size="icon"
                                                         onClick={() => handleEdit(user)}
                                                     >
-                                                        <Pencil className="w-4 h-4 text-slate-500 hover:text-blue-600" />
+                                                        <Pencil className="w-4 h-4 text-muted-foreground hover:text-blue-600" />
                                                     </Button>
                                                 )}
                                                 {canDelete('users') && (
@@ -341,7 +385,7 @@ export default function UsersPage() {
                                                         size="icon"
                                                         onClick={() => handleDelete(user)}
                                                     >
-                                                        <Trash2 className="w-4 h-4 text-slate-500 hover:text-red-600" />
+                                                        <Trash2 className="w-4 h-4 text-muted-foreground hover:text-red-600" />
                                                     </Button>
                                                 )}
                                             </div>
@@ -383,15 +427,30 @@ export default function UsersPage() {
 
                         <div className="grid gap-2">
                             <Label htmlFor="email">Email</Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                value={formData.email}
-                                onChange={(e) =>
-                                    setFormData({ ...formData, email: e.target.value })
-                                }
-                                placeholder="joao@exemplo.com"
-                            />
+                            <div className="relative">
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    value={formData.email}
+                                    onChange={(e) =>
+                                        setFormData({ ...formData, email: e.target.value })
+                                    }
+                                    placeholder="joao@exemplo.com"
+                                    className={emailError ? 'border-red-500' : emailValid ? 'border-green-500' : ''}
+                                />
+                                {isCheckingEmail && (
+                                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-slate-400" />
+                                )}
+                                {!isCheckingEmail && emailValid && (
+                                    <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />
+                                )}
+                                {!isCheckingEmail && emailError && (
+                                    <XCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />
+                                )}
+                            </div>
+                            {emailError && (
+                                <p className="text-sm text-red-500">{emailError}</p>
+                            )}
                         </div>
 
                         <div className="grid gap-2">
@@ -435,7 +494,7 @@ export default function UsersPage() {
                         <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={isSaving}>
                             Cancelar
                         </Button>
-                        <Button onClick={handleSave} disabled={isSaving}>
+                        <Button onClick={handleSave} disabled={isSaving || (!editingUser && emailError !== '')}>
                             {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                             {editingUser ? 'Atualizar' : 'Criar'}
                         </Button>

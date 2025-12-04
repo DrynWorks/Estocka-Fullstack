@@ -99,8 +99,8 @@ export default function Dashboard() {
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Dashboard</h1>
-                <p className="text-slate-500 dark:text-slate-400 mt-2">Visão geral e métricas principais do seu estoque.</p>
+                <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+                <p className="text-muted-foreground mt-2">Visão geral e métricas principais do seu estoque.</p>
             </div>
 
             {/* KPI Cards */}
@@ -111,7 +111,7 @@ export default function Dashboard() {
                     const CardContentWrapper = (
                         <Card className={`h-full ${hasPermission ? 'hover:shadow-md transition-shadow cursor-pointer' : 'opacity-90'}`}>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                                <CardTitle className="text-sm font-medium text-muted-foreground">
                                     {stat.title}
                                 </CardTitle>
                                 <div className={`${stat.bgColor} p-2 rounded-full`}>

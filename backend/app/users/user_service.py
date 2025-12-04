@@ -15,11 +15,11 @@ def create_new_user(db: Session, user: user_model.UserCreate):
     if user_repository.get_user_by_email(db, email=user.email):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered",
+            detail="Email já cadastrado",
         )
 
     if role_repository.get_role_by_id(db, role_id=user.role_id) is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Função não encontrada")
 
     try:
         processed_image = process_image_base64(user.profile_image_base64)
@@ -28,7 +28,7 @@ def create_new_user(db: Session, user: user_model.UserCreate):
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Image processing error: {exc}",
+            detail=f"Erro ao processar imagem: {exc}",
         ) from exc
 
     return user_repository.create_user(db=db, user=user_data, role_id=user.role_id)
@@ -39,11 +39,18 @@ def get_all_users(db: Session, organization_id: int):
     return user_repository.get_users_by_organization(db, organization_id)
 
 
+def check_email_exists(db: Session, email: str, organization_id: int) -> bool:
+    """Check if email already exists in the organization."""
+    user = user_repository.get_user_by_email(db, email=email)
+    # Email exists if found AND belongs to the same organization
+    return user is not None and user.organization_id == organization_id
+
+
 def get_user_by_id(db: Session, user_id: int):
     """Retrieve a user by ID or raise 404."""
     db_user = user_repository.get_user(db, user_id=user_id)
     if db_user is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado")
     return db_user
 
 
@@ -59,12 +66,12 @@ def update_existing_user(db: Session, user_id: int, user_in: user_model.UserUpda
         except ValueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Image processing error: {exc}",
+                detail=f"Erro ao processar imagem: {exc}",
             ) from exc
 
     if update_payload.role_id is not None:
         if role_repository.get_role_by_id(db, role_id=update_payload.role_id) is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Função não encontrada")
 
     return user_repository.update_user(db=db, db_user=db_user, user_in=update_payload)
 

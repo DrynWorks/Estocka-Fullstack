@@ -103,8 +103,8 @@ export default function AuditPage() {
         return (
             <div className="space-y-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Auditoria</h1>
-                    <p className="text-slate-600 mt-1">Carregando...</p>
+                    <h1 className="text-3xl font-bold text-foreground">Auditoria</h1>
+                    <p className="text-muted-foreground mt-1">Carregando...</p>
                 </div>
                 <Card>
                     <CardHeader>
@@ -121,8 +121,8 @@ export default function AuditPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-3xl font-bold text-slate-900">Auditoria</h1>
-                <p className="text-slate-600 mt-1">
+                <h1 className="text-3xl font-bold text-foreground">Auditoria</h1>
+                <p className="text-muted-foreground mt-1">
                     Histórico de ações realizadas no sistema
                 </p>
             </div>
@@ -172,7 +172,7 @@ export default function AuditPage() {
                                         </TableCell>
                                         <TableCell>
                                             {log.details && (
-                                                <div className="text-sm text-slate-600">
+                                                <div className="text-sm text-muted-foreground">
                                                     {log.details.name && <div><strong>Nome:</strong> {log.details.name}</div>}
                                                     {log.details.sku && <div><strong>SKU:</strong> {log.details.sku}</div>}
                                                     {log.details.type && <div><strong>Tipo:</strong> {log.details.type}</div>}
