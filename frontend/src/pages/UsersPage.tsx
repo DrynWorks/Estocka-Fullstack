@@ -224,8 +224,15 @@ export default function UsersPage() {
             user.email,
             user.role.name
         ]);
-        exportToPDF('Relatório de Usuários', headers, data, 'usuarios');
-        toast.success('Relatório PDF exportado com sucesso!');
+
+        toast.promise(
+            Promise.resolve(exportToPDF('Relatório de Usuários', headers, data, 'usuarios')),
+            {
+                loading: '📝 Gerando PDF...',
+                success: '📄 usuarios.pdf exportado com sucesso!',
+                error: 'Erro ao exportar PDF',
+            }
+        );
     };
 
     const handleExportCSV = () => {
@@ -234,8 +241,15 @@ export default function UsersPage() {
             'Email': user.email,
             'Função': user.role.name
         }));
-        exportToCSV(data, 'usuarios');
-        toast.success('Relatório CSV exportado com sucesso!');
+
+        toast.promise(
+            Promise.resolve(exportToCSV(data, 'usuarios')),
+            {
+                loading: '🗂️ Gerando CSV...',
+                success: '📈 usuarios.csv exportado com sucesso!',
+                error: 'Erro ao exportar CSV',
+            }
+        );
     };
 
     const filteredUsers = users.filter(user =>

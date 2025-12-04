@@ -40,6 +40,7 @@ import {
 import { productService } from '@/services/productService';
 import { categoryService } from '@/services/categoryService';
 import { exportToPDF, exportToCSV } from '@/utils/export';
+import { toast } from 'sonner';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -249,28 +250,44 @@ export default function ProductsPage() {
     };
 
     const handleExportPDF = () => {
-        const headers = ['Nome', 'SKU', 'Categoria', 'Preço', 'Qtd', 'Alerta'];
-        const data = filteredProducts.map((p) => [
+        const headers = ['Nome', 'SKU', 'Categoria', 'Quantidade', 'Preço'];
+        const data = filteredProducts.map(p => [
             p.name,
             p.sku,
-            p.category.name,
-            `R$ ${p.price.toFixed(2)}`,
-            p.quantity,
-            p.alert_level,
+            p.category?.name || 'Sem categoria',
+            p.quantity.toString(),
+            `R$ ${p.price.toFixed(2)}`
         ]);
-        exportToPDF('Produtos', headers, data, 'produtos');
+
+        toast.promise(
+            Promise.resolve(exportToPDF('Produtos', headers, data, 'produtos')),
+            {
+                loading: '📝 Gerando PDF...',
+                success: '📄 produtos.pdf exportado com sucesso!',
+                error: 'Erro ao exportar PDF',
+            }
+        );
     };
 
     const handleExportCSV = () => {
-        const data = filteredProducts.map((p) => ({
-            name: p.name,
-            sku: p.sku,
-            category: p.category.name,
-            price: p.price,
-            quantity: p.quantity,
-            alert_level: p.alert_level,
+        const data = filteredProducts.map(p => ({
+            'Nome': p.name,
+            'SKU': p.sku,
+            'Categoria': p.category?.name || 'Sem categoria',
+            'Quantidade': p.quantity,
+            'Preço': p.price,
+            'Custo': p.cost_price,
+            'Estoque Mínimo': p.alert_level
         }));
-        exportToCSV(data, 'produtos');
+
+        toast.promise(
+            Promise.resolve(exportToCSV(data, 'produtos')),
+            {
+                loading: '🗂️ Gerando CSV...',
+                success: '📈 produtos.csv exportado com sucesso!',
+                error: 'Erro ao exportar CSV',
+            }
+        );
     };
 
     if (loading) {

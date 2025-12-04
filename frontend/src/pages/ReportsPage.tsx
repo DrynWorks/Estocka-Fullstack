@@ -37,6 +37,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
+import { toast } from "sonner";
 
 export default function ReportsPage() {
   const { canExport } = usePermissions();
@@ -193,7 +194,15 @@ export default function ReportsPage() {
         filename = "relatorio_previsao";
         break;
     }
-    exportToCSV(data, filename);
+
+    toast.promise(
+      Promise.resolve(exportToCSV(data, filename)),
+      {
+        loading: '🗂️ Gerando CSV...',
+        success: `📈 ${filename}.csv exportado com sucesso!`,
+        error: 'Erro ao exportar CSV',
+      }
+    );
   };
 
   const handleExportPDF = () => {
@@ -245,7 +254,15 @@ export default function ReportsPage() {
         filename = "relatorio_previsao";
         break;
     }
-    exportToPDF(title, headers, rows, filename);
+
+    toast.promise(
+      Promise.resolve(exportToPDF(title, headers, rows, filename)),
+      {
+        loading: '📝 Gerando PDF...',
+        success: `📄 ${filename}.pdf exportado com sucesso!`,
+        error: 'Erro ao exportar PDF',
+      }
+    );
   };
 
   if (loading) {

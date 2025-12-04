@@ -149,8 +149,15 @@ export default function MovementsPage() {
             m.reason || '-',
             m.created_by?.full_name || 'Sistema'
         ]);
-        exportToPDF('Relatório de Movimentações', headers, data, 'movimentacoes');
-        toast.success('Relatório PDF exportado com sucesso!');
+
+        toast.promise(
+            Promise.resolve(exportToPDF('Relatório de Movimentações', headers, data, 'movimentacoes')),
+            {
+                loading: '📝 Gerando PDF...',
+                success: '📄 movimentacoes.pdf exportado com sucesso!',
+                error: 'Erro ao exportar PDF',
+            }
+        );
     };
 
     const handleExportCSV = () => {
@@ -162,8 +169,15 @@ export default function MovementsPage() {
             'Motivo': m.reason || '-',
             'Usuário': m.created_by?.full_name || 'Sistema'
         }));
-        exportToCSV(data, 'movimentacoes');
-        toast.success('Relatório CSV exportado com sucesso!');
+
+        toast.promise(
+            Promise.resolve(exportToCSV(data, 'movimentacoes')),
+            {
+                loading: '🗂️ Gerando CSV...',
+                success: '📈 movimentacoes.csv exportado com sucesso!',
+                error: 'Erro ao exportar CSV',
+            }
+        );
     };
 
     if (loading) {
