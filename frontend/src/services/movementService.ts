@@ -52,7 +52,7 @@ export const movementService = {
 
     async revert(id: number): Promise<Movement> {
         try {
-            const response = await api.post(`/movements/${id}/revert`);
+            const response = await api.post(`/movements/revert/${id}`);
             return response.data;
         } catch (error) {
             console.error(`Error reverting movement ${id}:`, error);
