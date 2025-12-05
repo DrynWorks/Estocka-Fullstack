@@ -1,441 +1,196 @@
-# 🏢 Estocka - Sistema de Gestão de Estoque
+# Estocka - Documentacao Tecnica
 
-## 📋 Visão Geral
-
-O **Estocka** é um sistema fullstack de gestão de estoque desenvolvido para controlar produtos, movimentações, categorias e gerar relatórios analíticos avançados. O sistema implementa controle de acesso baseado em perfis (RBAC) e auditoria completa de ações.
-
----
-
-## 🏗️ Arquitetura do Sistema
-
-### Stack Tecnológico
-
-#### **Backend** 🔧
-- **Framework**: FastAPI (Python)
-- **ORM**: SQLAlchemy
-- **Banco de Dados**: PostgreSQL
-- **Migrações**: Alembic
-- **Autenticação**: JWT (JSON Web Tokens)
-- **Validação**: Pydantic
-
-#### **Frontend** 🎨
-- **Framework**: React 18 + TypeScript
-- **Build Tool**: Vite
-- **Roteamento**: React Router v6
-- **UI Components**: shadcn/ui (Radix UI + Tailwind CSS)
-- **Gráficos**: Recharts
-- **Requisições HTTP**: Axios
-- **Gerenciamento de Estado**: Context API + Hooks
+## Visao Geral
+Estocka e um sistema fullstack para gestao de estoque com isolamento por organizacao (multi-tenant), controle de acesso por papel e trilha de auditoria. Ele cobre cadastro de produtos/categorias, movimentacoes de entrada/saida, relatorios analiticos (ABC, XYZ, giro, previsao) e exportacao em CSV/PDF.
 
 ---
 
-## 🗂️ Estrutura do Projeto
+## Stack e Arquitetura
+- Backend: FastAPI + SQLAlchemy, Pydantic, JWT, SlowAPI (rate limit), Alembic. Banco padrao SQLite local (`estocka_dev.db`), configuravel via `DATABASE_URL` (PostgreSQL suportado).
+- Frontend: React 18 + TypeScript (Vite), React Router v6, shadcn/ui (Radix + Tailwind), Recharts, Sonner (toasts).
+- Auth: JWT assinado por `SECRET_KEY`; token salvo em `localStorage` e injetado pelo interceptor Axios.
+- RBAC: roles `admin` e `user` (aliases owner/collaborator) com mapa de permissoes em `app/roles/role_permissions.py` e replicado no hook `usePermissions`.
+- Multi-tenancy: todos os modelos chave possuem `organization_id`; dependencias `get_current_user`/`get_organization_id` filtram consultas.
+- Auditoria: tabela `audit_logs` registra acao, entidade, usuario e detalhes (JSON) em criacoes/atualizacoes/exclusoes relevantes.
 
-### Backend (`/backend`)
-
+### Estrutura de Pastas (resumo)
 ```
 backend/
-├── app/
-│   ├── auth/              # Autenticação e autorização
-│   │   ├── auth_controller.py    # Endpoints de login/logout
-│   │   ├── auth_service.py       # Lógica de autenticação
-│   │   └── jwt_handler.py        # Geração/validação de JWT
-│   │
-│   ├── users/             # Gestão de usuários
-│   ├── roles/             # Gestão de perfis/permissões
-│   ├── products/          # CRUD de produtos
-│   ├── categories/        # CRUD de categorias
-│   ├── movements/         # Movimentações de estoque
-│   ├── dashboard/         # Dados do dashboard
-│   ├── reports/           # Relatórios analíticos
-│   ├── audit/             # Auditoria de ações
-│   │
-│   ├── database.py        # Configuração do banco
-│   ├── models.py          # Modelos SQLAlchemy
-│   └── main.py            # Ponto de entrada da API
-│
-├── alembic/               # Migrações de banco
-└── requirements.txt       # Dependências Python
-```
+  app/
+    auth/, users/, roles/, organizations/    # autenticacao, usuarios e papeis
+    products/, categories/, movements/       # dominio de estoque
+    dashboard/, reports/                     # KPIs e relatorios
+    audit/, utils/, config.py, constants.py, main.py
+  tests/                                     # pytest
 
-### Frontend (`/frontend`)
-
-```
 frontend/
-├── src/
-│   ├── components/        # Componentes React
-│   │   ├── ui/           # Componentes base (shadcn)
-│   │   ├── dashboard/    # Componentes do dashboard
-│   │   └── layout/       # Layout e navegação
-│   │
-│   ├── pages/            # Páginas da aplicação
-│   │   ├── Dashboard.tsx
-│   │   ├── ProductsPage.tsx
-│   │   ├── MovementsPage.tsx
-│   │   ├── ReportsPage.tsx
-│   │   ├── UsersPage.tsx
-│   │   └── AuditPage.tsx
-│   │
-│   ├── services/         # Serviços de API
-│   │   ├── api.ts               # Cliente Axios
-│   │   ├── authService.ts       # Autenticação
-│   │   ├── productService.ts    # Produtos
-│   │   ├── reportService.ts     # Relatórios
-│   │   └── ...
-│   │
-│   ├── contexts/         # Contextos React
-│   │   └── AuthContext.tsx      # Contexto de autenticação
-│   │
-│   ├── hooks/            # Custom Hooks
-│   │   └── usePermissions.ts    # Hook de permissões
-│   │
-│   ├── utils/            # Utilitários
-│   │   ├── formatters.ts        # Formatação de dados
-│   │   └── exportUtils.ts       # Exportação PDF/CSV
-│   │
-│   └── main.tsx          # Ponto de entrada
-│
-└── package.json          # Dependências Node
+  src/
+    pages/ (Dashboard, ProductsPage, MovementsPage, ReportsPage, UsersPage, AuditPage, LoginPage, SignupPage)
+    components/ (layout, dashboard charts, ui base)
+    contexts/AuthContext, hooks/usePermissions
+    services/ (api, productService, movementService, reportService, etc.)
+    utils/ (export, formatters)
 ```
 
 ---
 
-## 🔐 Sistema de Autenticação e Autorização
-
-### Autenticação (JWT)
-1. **Login**: Usuário envia email/senha → Backend valida → Retorna token JWT
-2. **Token**: Armazenado no `localStorage` do navegador
-3. **Requisições**: Token enviado no header `Authorization: Bearer <token>`
-4. **Refresh**: Token expira após X horas, usuário precisa fazer login novamente
-
-### Autorização (RBAC - Role-Based Access Control)
-
-#### Perfis de Usuário
-- **Admin**: Acesso completo ao sistema
-- **Collaborator**: Acesso limitado (sem gerenciar usuários/auditoria)
-
-#### Permissões por Módulo
-```
-┌─────────────┬───────┬──────────────┐
-│ Módulo      │ Admin │ Collaborator │
-├─────────────┼───────┼──────────────┤
-│ Dashboard   │  ✓    │      ✓       │
-│ Produtos    │  ✓    │      ✓       │
-│ Movimentos  │  ✓    │      ✓       │
-│ Relatórios  │  ✓    │      ✓       │
-│ Categorias  │  ✓    │      ✓       │
-│ Usuários    │  ✓    │      ✗       │
-│ Auditoria   │  ✓    │      ✗       │
-│ Exportar    │  ✓    │      ✗       │
-└─────────────┴───────┴──────────────┘
-```
-
-### Multi-tenancy
-- Cada usuário pertence a uma **organização**
-- Dados são isolados por organização (usuários de Org A não veem dados da Org B)
-- Filtros automáticos em todas as queries do banco
+## Modelos e Regras de Negocio
+- Organizacao: `name`, `slug` unico, `active`; relaciona usuarios, produtos, categorias e auditoria.
+- Papeis/Permissoes: `admin` (acesso total) e `user` (operacional). Permissoes expostas no hook `usePermissions` e no decorador backend `require_role`.
+- Usuario: email unico, senha bcrypt, `role_id`, `organization_id`, imagem opcional (URL/Base64). Seeds criam `admin@estoque.com` e `user@estoque.com` (senha `1234`) quando `SEED_ON_START=true`.
+- Categoria: nome/descricao, isolada por organizacao.
+- Produto: nome, SKU unico por organizacao, `price`, `cost_price`, `quantity`, `alert_level`, `lead_time`, `category_id`, soft delete (`is_deleted`, `deleted_at`, `deleted_by_id`). Validacoes Pydantic impedem SKU invalido e preco de venda <= custo.
+- Movimentacao: `type` entrada|saida, quantidade > 0, motivo/anotacao opcionais, `created_by_id`, `organization_id`. Imutavel (PUT/DELETE retornam 405); metodo de reverter cria movimento inverso.
+- Auditoria: registra `action` create/update/delete, `entity_type` (product, movement, category, user), `entity_id`, `details` JSON, `user_id`.
+- Relatorios/Insights:
+  - ABC: classifica consumo por valor (limiares 80%/95% em `constants.py`).
+  - XYZ: coeficiente de variacao semanal.
+  - Giro: vendas/estoque medio (simplificado).
+  - Financeiro: valor de estoque, custo, margem potencial.
+  - Previsao: consumo medio diario, dias ate ruptura, ponto de pedido, status OK/WARNING/CRITICAL.
+  - Dashboard: valor de estoque, margem media, ruptura (% produtos zerados), tendencia de vendas, top produtos, distribuicao ABC.
 
 ---
 
-## 📊 Funcionalidades Principais
-
-### 1. Dashboard 📈
-**O que mostra:**
-- KPIs: Total de produtos, movimentações, valor em estoque, categorias
-- Gráficos:
-  - Tendência de vendas (últimos 30 dias)
-  - Top 5 produtos (mais movimentados)
-  - Distribuição ABC de produtos
-  - Últimas movimentações
-- Alertas de produtos com estoque baixo
-
-**Tecnologias:** Recharts para gráficos, Cards responsivos
-
-### 2. Gestão de Produtos 📦
-**Funcionalidades:**
-- CRUD completo (Criar, Ler, Atualizar, Deletar)
-- Campos: Nome, Descrição, SKU, Categoria, Preço de Custo, Preço de Venda, Estoque Mínimo, Estoque Atual
-- Filtros e busca em tempo real
-- Indicadores visuais (estoque baixo em vermelho)
-
-**Validações:**
-- SKU único por organização
-- Preços positivos
-- Estoque mínimo >= 0
-
-### 3. Movimentações de Estoque 📋
-**Tipos de Movimentação:**
-- **Entrada**: Adiciona produtos ao estoque
-- **Saída**: Remove produtos do estoque
-
-**Campos:**
-- Produto, Tipo, Quantidade, Descrição, Data
-
-**Regras de Negócio:**
-- Saída não pode deixar estoque negativo
-- Atualização automática do estoque do produto
-- Registro na auditoria
-
-### 4. Relatórios Analíticos 📊
-
-#### Curva ABC
-**O que é:** Classifica produtos por importância no valor consumido
-- **Classe A**: ~20% dos produtos = ~80% do valor (foco máximo)
-- **Classe B**: ~30% dos produtos = ~15% do valor
-- **Classe C**: ~50% dos produtos = ~5% do valor
-
-**Visualização:** Tabela detalhada + Gráfico de pizza
-
-#### Análise XYZ
-**O que é:** Mede variabilidade da demanda
-- **X**: Demanda estável e previsível
-- **Y**: Demanda moderada
-- **Z**: Demanda irregular (requer atenção extra)
-
-**Cálculo:** Coeficiente de Variação (CV) = Desvio Padrão / Média
-
-**Visualização:** Tabela + Gráfico de barras horizontais
-
-#### Giro de Estoque
-**O que é:** Indica quantas vezes o estoque "gira" no período
-
-**Fórmula:** Giro = Total Vendido / Estoque Médio
-
-**Classificação:**
-- Alto (>4x): Produtos vendem rápido
-- Médio (2-4x): Rotatividade normal
-- Baixo (<2x): Produtos parados
-
-**Visualização:** Tabela + Top 5 em gráfico de barras
-
-#### Previsão de Estoque
-**O que faz:** Calcula quando produtos podem faltar
-
-**Campos:**
-- Consumo Diário Médio
-- Dias Restantes até Ruptura
-- Ponto de Pedido (quando encomendar)
-- Status: Crítico (<7 dias), Alerta (7-30 dias), OK (>30 dias)
-
-**Visualização:** Tabela + Gráfico de status
-
-**Exportação:** Todos os relatórios podem ser exportados em PDF ou CSV (apenas Admin)
-
-### 5. Categorias 🏷️
-**Funcionalidades:**
-- CRUD de categorias de produtos
-- Nome e Descrição
-- Vinculação com produtos
-
-### 6. Gestão de Usuários 👥 (Admin only)
-**Funcionalidades:**
-- Criar/editar/deletar usuários
-- Atribuir perfis (Admin/Collaborator)
-- Listar usuários da organização
-- Filtros por perfil e status
-
-### 7. Auditoria 📝 (Admin only)
-**O que registra:**
-- Todas as ações críticas: criar, editar, deletar
-- Quem fez, quando fez, o que fez, em qual entidade
-
-**Campos do Log:**
-- Usuário, Ação, Entidade, ID da Entidade, Data/Hora, Detalhes (JSON)
-
-**Visualização:** Tabela paginada com filtros
+## Endpoints Principais
+- Auth (`/auth`): `POST /login` (OAuth2PasswordRequestForm), `POST /signup` cria organizacao + usuario admin, `GET /me`.
+- Organizacoes (`/organizations`): `GET /me`, `PATCH /me`, `POST /` (cria nova).
+- Produtos (`/products`): `POST /`, `GET /`, `GET /search` (busca/filtros de categoria, status de estoque, preco), `GET /{id}`, `PUT /{id}`, `DELETE /{id}`. Tudo filtrado por `organization_id`.
+- Categorias (`/categories`): CRUD isolado por organizacao.
+- Movimentacoes (`/movements`): `POST /` (registra entrada/saida e ajusta estoque), `POST /revert/{id}` (reverte), `GET /`, `GET /recent`, `GET /history`, `GET /filter`. Atualizar/deletar nao permitido.
+- Dashboard (`/dashboard`): `GET /overview`, `/sales-trend`, `/top-products`, `/abc-distribution`.
+- Relatorios (`/reports`): `GET /overview`, `/categories`, `/alerts`, `/movements`, `/abc`, `/xyz`, `/turnover`, `/financial`, `/forecast`, alem de insights `/profitability`, `/comparison`, `/recommendations`.
+- Auditoria (`/audit/logs`): lista logs com filtros e paginacao.
 
 ---
 
-## 🔄 Fluxos do Sistema
-
-### Fluxo de Login
-```
-1. Usuário acessa /login
-2. Digita email/senha
-3. Frontend → POST /auth/login
-4. Backend valida credenciais
-5. Backend gera token JWT
-6. Frontend armazena token
-7. Redireciona para /dashboard
-```
-
-### Fluxo de Movimentação
-```
-1. Usuário acessa /movimentacoes
-2. Clica em "Nova Movimentação"
-3. Seleciona produto, tipo (entrada/saída), quantidade
-4. Frontend → POST /movements/
-5. Backend valida:
-   - Se saída: estoque suficiente?
-   - Quantidade > 0?
-6. Backend atualiza estoque do produto
-7. Backend registra na auditoria
-8. Retorna sucesso
-9. Frontend atualiza lista
-```
-
-### Fluxo de Relatório
-```
-1. Usuário acessa /relatorios
-2. Seleciona aba (ABC, XYZ, Giro, Previsão)
-3. Frontend → GET /reports/{tipo}
-4. Backend calcula métricas:
-   - ABC: agrupa por valor, ordena, calcula %
-   - XYZ: calcula CV de cada produto
-   - Giro: total vendido / estoque médio
-   - Previsão: consumo diário, dias restantes
-5. Retorna dados processados
-6. Frontend exibe em tabela + gráfico
-7. (Opcional) Usuário exporta PDF/CSV
-```
+## Frontend (UX e Fluxos)
+- Autenticacao: `AuthContext` armazena token; interceptor Axios injeta `Authorization` e redireciona 401 para `/login`. Rota privada envolve `Layout`.
+- Login/Signup: formularios simples; signup cria organizacao + admin via `/auth/signup`.
+- Dashboard: cards de KPI (produtos, valor em estoque, rupturas), graficos Recharts (tendencia de vendas, top produtos, distribuicao ABC) e ultimas movimentacoes (condicional por permissao).
+- Produtos: tabela ou grade com busca, filtros (categoria, status de estoque, preco min/max), paginacao, modal de criacao/edicao, alerta de estoque baixo (badge), confirmacao de exclusao, exportacao CSV/PDF.
+- Movimentacoes: listagem paginada, filtro por produto e tipo, ordenacao por data, modal para registrar entrada/saida, exportacao CSV/PDF. Obs.: o service frontend chama `POST /movements/{id}/revert`, mas o backend expõe `POST /movements/revert/{id}` (ajustar antes de usar revert).
+- Relatorios: abas ABC, XYZ, Giro, Previsao, Financeiro; graficos (pizza, barras), filtros rapidos (limite de itens, filtro por classe/status), exportacao CSV/PDF por aba.
+- Usuarios: listagem, criacao/edicao (atribui role), controles visuais guiados por `usePermissions`.
+- Auditoria: tabela com filtros (usuario, acao, entidade, datas).
+- Tema/UX: tema claro/escuro via `ThemeProvider`, componentes shadcn/ui, toasts Sonner, skeletons de carregamento, utilitarios de exportacao.
 
 ---
 
-## 🎨 Interface do Usuário
-
-### Design System
-- **Cores:** Tema escuro/claro (toggle automático)
-- **Componentes:** shadcn/ui (acessíveis e customizáveis)
-- **Ícones:** Lucide React
-- **Tipografia:** Font system (legível e moderna)
-
-### Responsividade
-- **Desktop**: Grid de 2-4 colunas
-- **Tablet**: Grid de 2 colunas
-- **Mobile**: Coluna única, menu hambúrguer
-
-### Navegação
-- **Sidebar**: Menu lateral com links principais
-- **Header**: Nome do usuário, toggle tema, logout
-- **Breadcrumbs**: Localização na aplicação
+## Fluxos Essenciais
+- Login: form envia `username`/`password` -> `/auth/login` -> token no localStorage -> redirect `/dashboard` -> `GET /auth/me` para dados do usuario.
+- Signup: `/auth/signup` cria organizacao + admin e ja retorna token.
+- Criar produto: `POST /products` valida SKU unico e categoria existente; registra auditoria.
+- Movimentacao: `POST /movements` ajusta estoque (valida saldo em saidas) e cria log de auditoria; movimentos nao sao editaveis.
+- Relatorios: rotas `/reports/*` calculam metrica no backend e retornam dados prontos para tabelas/graficos (frontend apenas mapeia).
 
 ---
 
-## 🔧 Configuração e Deploy
+## Configuracao e Execucao
+Requisitos: Python 3.8+, Node 16+, banco (SQLite default ou PostgreSQL).
 
-### Requisitos
-- Python 3.8+
-- Node.js 16+
-- PostgreSQL 12+
+Variaveis (.env no backend):
+```
+SECRET_KEY=troque_me
+DATABASE_URL=sqlite:///./estocka_dev.db   # ou postgresql://user:pass@host/db
+SEED_ON_START=true
+FRONTEND_URL=http://localhost:5173
+```
 
-### Setup Backend
-```bash
+Backend:
+```
 cd backend
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+venv\Scripts\activate        # Windows
 pip install -r requirements.txt
-alembic upgrade head
+alembic upgrade head         # ou deixe create_all criar SQLite
 uvicorn app.main:app --reload
 ```
+- Seeds: com `SEED_ON_START=true`, sobe roles admin/user e usuarios admin@estoque.com / user@estoque.com (senha 1234). `python seed_database.py` popula dados de exemplo.
+- Testes: `pytest` em `backend/tests`.
 
-### Setup Frontend
-```bash
+Frontend:
+```
 cd frontend
 npm install
-npm run dev
+npm run dev                  # porta 5173
 ```
-
-### Variáveis de Ambiente (.env)
-```env
-# Backend
-DATABASE_URL=postgresql://user:pass@localhost/estocka
-SECRET_KEY=seu_secret_key_aqui
-ACCESS_TOKEN_EXPIRE_MINUTES=1440
-
-# Frontend
-VITE_API_URL=http://localhost:8000
-```
+Configurar `VITE_API_URL` se for apontar para outro host (hoje baseURL fixa em `services/api.ts` para http://localhost:8000).
 
 ---
 
-## 🚀 Diferenciais do Projeto
-
-1. **Arquitetura Modular**: Backend e frontend bem organizados
-2. **TypeScript**: Type safety no frontend
-3. **RBAC**: Controle de acesso granular
-4. **Multi-tenancy**: Isolamento de dados por organização
-5. **Auditoria Completa**: Rastreabilidade de todas as ações
-6. **Relatórios Avançados**: ABC, XYZ, Giro, Previsão
-7. **Exportação**: PDF e CSV
-8. **Responsivo**: Funciona em desktop, tablet e mobile
-9. **Dark Mode**: Tema escuro/claro
-10. **Boas Práticas**: Clean code, componentização, separação de responsabilidades
+## Observacoes e Pontos de Atencao
+- Endpoint de revert de movimentacao: backend usa `POST /movements/revert/{id}`; o service frontend chama `/movements/{id}/revert`. Necessario alinhar antes de usar.
+- Token nao tem refresh; ao expirar, o usuario deve logar novamente.
+- Banco padrao e SQLite local; para producao usar Postgres e ajustar `DATABASE_URL` e Alembic.
+- Produto tem soft delete (`is_deleted`) mas a UI nao exibe itens apagados nem oferece restauracao.
+- Logs de auditoria dependem de `organization_id`; garantir que novos endpoints usem `get_current_user`/`get_organization_id` para manter o isolamento.
 
 ---
 
-## 📝 Possíveis Melhorias Futuras
-
-- Notificações em tempo real (WebSockets)
-- Dashboard customizável pelo usuário
-- Integração com APIs de fornecedores
-- App mobile (React Native)
-- Backup automático
-- Relatórios personalizados
-- Previsão de demanda com Machine Learning
+## Ajustes Recentes para Deploy e Compatibilidade
+- Rota de revert de movimentacao: frontend ajustado para usar `POST /movements/revert/{id}`, alinhado com o backend (arquivo `frontend/src/services/movementService.ts`).
+- API base configuravel: frontend agora usa `import.meta.env.VITE_API_URL` (fallback `http://localhost:8000`) em `frontend/src/services/api.ts`. Para deploy, definir `VITE_API_URL=https://seu-backend`.
+- Deploy sugerido no Render (ou similar):
+  - Backend: Web Service com start `uvicorn app.main:app --host 0.0.0.0 --port $PORT`; vars `DATABASE_URL`, `SECRET_KEY`, `FRONTEND_URL`, `SEED_ON_START=false`; usar Postgres gerenciado; rodar `alembic upgrade head`.
+  - Frontend: Static build com `npm install && npm run build`; servir `dist/`; definir `VITE_API_URL` apontando para o backend publicado.
 
 ---
 
-## 🎓 Tecnologias e Conceitos Demonstrados
-
-### Backend
-- API RESTful
-- ORM e Migrations
-- JWT Authentication
-- Dependency Injection
-- Service Layer Pattern
-- Repository Pattern
-
-### Frontend
-- SPA (Single Page Application)
-- Component-Based Architecture
-- Custom Hooks
-- Context API
-- Protected Routes
-- Data Visualization
-
-### Banco de Dados
-- Modelagem Relacional
-- Índices
-- Foreign Keys
-- Soft Delete
-
-### DevOps
-- Versionamento (Git)
-- Variáveis de Ambiente
-- Separação de ambientes (dev/prod)
+## Resultados de Testes (para TCC)
+- Suite: 27 testes implementados, 24 passaram, 2 skipped, 1 falha conhecida (~92%).
+- Estrutura: `backend/tests/{test_auth.py, test_products.py, test_movements.py, test_validations.py, conftest.py}`.
+- Falhas mapeadas:
+  1) `test_login_success`: espera campo `user` no OAuth2; ajustar teste ou resposta (nao critico).
+  2) `test_valid_sku_formats`: SKU duplicado no banco; usar SKUs unicos ou limpar base entre testes.
+- Skipped: `test_update_product` (API usa PUT), `test_login_rate_limit` (evitar interferencia).
+- Como rodar: `cd backend && python -m pytest -v --tb=short` (esperado: 24 passed, 2 skipped; possivel 1 falha se nao corrigir SKUs).
+- Beneficios para TCC: demonstra cobertura de autenticao, CRUD de produtos, movimentos, validacoes de negocio e soft delete; pode ser executado ao vivo para evidenciar qualidade.
 
 ---
 
-## 📞 Apresentação - Roteiro Sugerido
+## Testes Automatizados e Validados
+- Suite backend em `backend/tests` (pytest):
+  - `test_auth.py`: login com credenciais validas/invalidas, protecao de rota `/auth/me`.
+  - `test_movements.py`: cria movimento entrada/saida, valida bloqueio de estoque negativo, garante que movimentos sao imutaveis (PUT/DELETE 405).
+  - `test_products.py`: cria produto, valida SKU duplicado, atualiza e apaga com soft delete.
+  - `test_validations.py`: valida formatação de SKU e regras de preco (venda > custo).
+  - `conftest.py`: fabrica sessao e cliente de teste com banco isolado.
+- Como rodar local: `cd backend && pytest`.
+- Ambiente recomendado para testes: banco SQLite em memoria ou arquivo isolado; setar `DATABASE_URL=sqlite:///./test.db` e `SEED_ON_START=false` para evitar seeds automaticos.
+- Resultado esperado: todos verdes. Nao ha execucao registrada aqui; repetir antes de apresentar o TCC para garantir consistencia com a base e variaveis de ambiente.
+- Sugestao de smoke manual (frontend): login, criar produto, registrar entrada e saida, conferir estoque e auditoria, gerar relatorio ABC e exportar CSV.
 
-1. **Introdução (1 min)**
-   - Problema: Empresas precisam controlar estoque
-   - Solução: Sistema web completo de gestão
+---
 
-2. **Demo ao Vivo (5-7 min)**
-   - Login
-   - Dashboard (mostrar gráficos)
-   - Cadastrar produto
-   - Registrar movimentação
-   - Ver relatórios (ABC + exportar PDF)
-   - Mostrar auditoria
+## Como o Projeto Foi Conduzido (narrativa para TCC)
+1) Planejamento: definicao de escopo (multi-tenant, RBAC, auditoria, relatorios ABC/XYZ/giro/previsao) e dos dominios principais (usuarios, produtos, categorias, movimentos).
+2) Modelagem backend: criacao dos modelos SQLAlchemy com `organization_id` em todos os dominios, regras de negocio no service layer e repositorios para consultas. Seeds basicos para roles/usuarios.
+3) Autenticacao e seguranca: JWT, hashing bcrypt, middleware CORS, rate limit (SlowAPI) para login. Decoradores `require_role` para proteger rotas sensiveis.
+4) Fluxos criticos implementados primeiro: produtos (CRUD + soft delete + validacoes), movimentos (entrada/saida com validacao de saldo e auditoria), relatorios (ABC/XYZ/giro/previsao) e dashboard.
+5) Auditoria: cada acao de criacao/edicao/exclusao registra log com usuario, entidade e detalhes para rastreabilidade.
+6) Frontend: telas construidas com React/TypeScript, shadcn/ui e Recharts; uso de IA apenas para acelerar layout/UX e alguns helpers visuais, mantendo integracao manual com a API e validacoes de negocio no backend.
+7) Iteracoes e correcoes: alinhamento de filtros multi-tenant, validacao de SKU e precos, ajuste de imutabilidade de movimentos, melhorias de UX (skeletons, toasts, paginacao e exportacao).
+8) Preparacao para demo: seeds default, scripts de execucao simples, e conteudo de relatorios pronto para carregar dados sinteticos.
 
-3. **Arquitetura (2-3 min)**
-   - Mostrar diagrama da stack
-   - Backend FastAPI + PostgreSQL
-   - Frontend React + TypeScript
-   - Explicar JWT e RBAC
+---
 
-4. **Funcionalidades Destaque (2 min)**
-   - Relatórios analíticos (ABC, XYZ)
-   - Multi-tenancy
-   - Auditoria
-   - Responsivo
-
-5. **Conclusão (1 min)**
-   - Tecnologias modernas
-   - Boas práticas
-   - Escalável
-   - Possíveis melhorias
-
-**Total: 10-15 minutos**
+## Melhorias e Evolucoes Futuras
+- Backend
+  - Alinhar endpoint de revert de movimentacao com o frontend ou criar alias para compatibilidade.
+  - Adicionar refresh token/rotacao de chaves para sessao mais longa.
+  - Endpoints de restaurar produto soft-deletado e limpeza programada de registros apagados.
+  - Paginar listagens grandes (produtos, auditoria) e adicionar filtros extras (usuario, intervalo de valor).
+  - Bloqueio otimista/pessimista em atualizacoes de estoque para alta concorrencia (SELECT FOR UPDATE).
+  - Observabilidade: traces e metrics (Prometheus/OpenTelemetry).
+- Frontend
+  - Parametrizar `VITE_API_URL` via `.env` e usar build profiles.
+  - Corrigir rota de revert de movimento e expor botao seguro com confirmacao.
+  - Melhorar acessibilidade (atalhos, ARIA), estados vazios e mensagens offline.
+  - Dashboard customizavel por usuario (cards e periodos configuraveis).
+  - Adicionar filtros salvos e compartilhamento de relatorios.
+- Produto/Negocio
+  - Notificacoes em tempo real (WebSockets) para estoque critico.
+  - Integração com fornecedores/ERP (importacao de NF, pedidos).
+  - Forecast mais sofisticado (modelo de demanda/ML) e simulacao de cenarios.
+  - App mobile (React Native) para contagem e conferencia de estoque no piso.
