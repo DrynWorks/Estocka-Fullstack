@@ -6,6 +6,11 @@ além de um mini teste de carga (10 requisições simultâneas).
 
 from __future__ import annotations
 
+import sys
+import os
+# Adiciona o diretório pai (backend) ao sys.path para encontrar o módulo 'app'
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import concurrent.futures
 import statistics
 import time

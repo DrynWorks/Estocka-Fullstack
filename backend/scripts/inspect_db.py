@@ -1,6 +1,10 @@
 
-from sqlalchemy import create_engine, inspect
+import sys
 import os
+# Adiciona o diretório pai (backend) ao sys.path para encontrar o módulo 'app'
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from sqlalchemy import create_engine, inspect
 from dotenv import load_dotenv
 
 load_dotenv()

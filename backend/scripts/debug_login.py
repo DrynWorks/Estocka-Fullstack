@@ -1,3 +1,8 @@
+import sys
+import os
+# Adiciona o diretório pai (backend) ao sys.path para encontrar o módulo 'app'
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 from app.config import get_settings

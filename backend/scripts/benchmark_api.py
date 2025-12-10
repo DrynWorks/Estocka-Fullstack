@@ -5,6 +5,11 @@ Executa 100 requisições para endpoints chave e imprime tempo médio em ms.
 
 from __future__ import annotations
 
+import sys
+import os
+# Adiciona o diretório pai (backend) ao sys.path para encontrar o módulo 'app'
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import time
 from typing import Callable
 
