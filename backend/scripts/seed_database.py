@@ -196,7 +196,8 @@ def ensure_roles_and_users(session):
         org = Organization(
             name="Default Organization",
             slug="default",
-            active=True
+            active=True,
+            created_at=datetime.utcnow(),  # evita depender de server_default (SQLite nao tem now())
         )
         session.add(org)
         session.flush()

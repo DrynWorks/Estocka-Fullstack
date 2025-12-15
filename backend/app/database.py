@@ -17,6 +17,9 @@ SQLALCHEMY_DATABASE_URL = settings.database_url
 engine_kwargs: dict[str, object] = {}
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
     engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    # Manter conexões vivas em ambientes como Render; considerar tunar pool_size/max_overflow futuramente.
+    engine_kwargs["pool_pre_ping"] = True
 
 # Engine manages all database connections.
 engine: Engine = create_engine(SQLALCHEMY_DATABASE_URL, **engine_kwargs)

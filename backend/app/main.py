@@ -40,7 +40,7 @@ settings = get_settings()
 
 
 def create_all_tables() -> None:
-    """Create database tables during application bootstrap."""
+    """Create database tables during application bootstrap (use Alembic in prod)."""
     Base.metadata.create_all(bind=engine)
 
 
@@ -138,8 +138,6 @@ def _ensure_special_user(
     return user, True
 
 
-create_all_tables()
-
 app = FastAPI(
     title="Estocka API",
     version="1.0.0",
@@ -158,6 +156,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    return response
+
+@app.get("/health", status_code=200)
+def health_check() -> dict[str, str]:
+    """Lightweight health endpoint for platform probes."""
+    return {"status": "ok"}
 
 app.include_router(auth_controller.router)
 app.include_router(role_controller.router)

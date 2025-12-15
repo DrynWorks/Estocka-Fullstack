@@ -35,8 +35,12 @@ from app.roles import role_model
 
 target_metadata = Base.metadata
 
-# Override sqlalchemy.url with env var
-config.set_main_option("sqlalchemy.url", os.getenv("DATABASE_URL"))
+# Override sqlalchemy.url with env var, normalizing postgres scheme for Render
+url = config.get_main_option("sqlalchemy.url") or os.getenv("DATABASE_URL")
+if url and url.startswith("postgres://"):
+    url = url.replace("postgres://", "postgresql://", 1)
+if url:
+    config.set_main_option("sqlalchemy.url", url)
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
