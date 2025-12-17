@@ -90,32 +90,7 @@ def search_products(
         price_min=price_min,
         price_max=price_max,
     )
-    # Wait, the service search is less capable than the previous direct query (price range missing).
-    # I should update the service to support all filters or keep using build_product_filters BUT ensuring org_id.
-    # The previous code:
-    # stmt = build_product_filters(organization_id=current_user.organization_id, ...)
-    # products = db.scalars(stmt).all()
-    # This WAS actually correct regarding org_id!
-    # But I should probably move this logic to repository/service to be clean.
-    # However, for now, to avoid breaking advanced filters, I will revert to using build_product_filters BUT ensure it is correct.
-    # The previous code ALREADY passed organization_id=current_user.organization_id.
-    # So `search_products` endpoint was actually one of the few SAFE ones (as noted in review).
-    # But I want to use the service if possible.
-    # Let's stick to the existing implementation for search for now as it supports more filters, 
-    # BUT I will verify build_product_filters later.
-    # Actually, I should update the service to support these filters eventually.
-    # For this specific task (fixing critical security), the priority is the other endpoints.
-    # But wait, I replaced `search_products` in repository to filter by org_id.
-    # If I use `build_product_filters` here, does it use the repository? No, it builds a query.
-    # So `search_products` endpoint is fine as is (it uses `build_product_filters` which I need to trust/verify).
-    # Let's leave `search_products` mostly as is but ensure it uses `current_user.organization_id`.
     
-    # Actually, I will comment out the service call attempt and keep the original logic for search 
-    # because the service `search_products` I updated only supports basic filters.
-    # I will just ensure `current_user` is used.
-    
-    # ... (Original logic) ...
-
 
 @router.get("/{product_id}", response_model=product_model.ProductPublic)
 def get_product(

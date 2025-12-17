@@ -70,3 +70,5 @@ zstandard==0.25.0
 
 pydantic-settings
 python-jose
+slowapi
+pytest
