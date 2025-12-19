@@ -22,6 +22,7 @@ else:
     engine_kwargs["pool_pre_ping"] = True
 
 # Engine manages all database connections.
+print("Connecting to database...", SQLALCHEMY_DATABASE_URL)
 engine: Engine = create_engine(SQLALCHEMY_DATABASE_URL, **engine_kwargs)
 
 # Session factory per request.

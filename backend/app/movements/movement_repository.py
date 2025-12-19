@@ -29,6 +29,7 @@ def create_movement(
         created_by_id=created_by_user_id,
         organization_id=organization_id,
     )
+    print("Creating movement:", db_movement)
     db.add(db_movement)
     db.flush()
     db.refresh(db_movement)
