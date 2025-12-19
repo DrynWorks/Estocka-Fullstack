@@ -91,6 +91,8 @@ def create_movement(
             organization_id=organization_id,
         )
 
+    # Commit the transaction to persist the movement and product update
+    db.commit()
     db.refresh(product)
     return db_movement
 
