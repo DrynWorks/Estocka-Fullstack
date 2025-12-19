@@ -1,11 +1,10 @@
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import create_engine, pool
 
 from alembic import context
 
-# this is the Alembic Config object, which provides
+# this is the Alem bic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
@@ -36,7 +35,8 @@ from app.roles import role_model
 target_metadata = Base.metadata
 
 # Override sqlalchemy.url with env var, normalizing postgres scheme for Render
-url = config.get_main_option("sqlalchemy.url") or os.getenv("DATABASE_URL")
+# Prefer the env var if it exists
+url = os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
 if url and url.startswith("postgres://"):
     url = url.replace("postgres://", "postgresql://", 1)
 if url:
@@ -79,17 +79,14 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
+    # Use create_engine directly with the URL from environment
+    url = config.get_main_option("sqlalchemy.url")
+    connectable = create_engine(url, poolclass=pool.NullPool)
 
     with connectable.connect() as connection:
         context.configure(
             connection=connection, 
-            target_metadata=target_metadata,
-            render_as_batch=True
+            target_metadata=target_metadata
         )
 
         with context.begin_transaction():
