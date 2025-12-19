@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy import Column, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -18,9 +18,12 @@ class Category(Base):
     """SQLAlchemy model for the categories table."""
 
     __tablename__ = "categories"
+    __table_args__ = (
+        UniqueConstraint('name', 'organization_id', name='uq_category_name_org'),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(120), unique=True, index=True, nullable=False)
+    name = Column(String(120), index=True, nullable=False)
     description = Column(String(255), nullable=True)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
 
