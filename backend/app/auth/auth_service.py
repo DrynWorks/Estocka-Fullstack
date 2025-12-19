@@ -27,6 +27,37 @@ def authenticate_user(db: Session, email: str, password: str) -> User | None:
     return user
 
 
+def create_default_categories(db: Session, organization_id: int) -> None:
+    """
+    Create default categories for a new organization.
+    
+    This ensures that new organizations have a set of basic categories
+    available for product creation.
+    """
+    from app.categories.category_model import Category
+    
+    default_categories = [
+        {"name": "Eletrônicos", "description": "Produtos eletrônicos e dispositivos"},
+        {"name": "Alimentos", "description": "Produtos alimentícios"},
+        {"name": "Bebidas", "description": "Bebidas em geral"},
+        {"name": "Limpeza", "description": "Produtos de limpeza e higiene"},
+        {"name": "Vestuário", "description": "Roupas e acessórios"},
+        {"name": "Ferramentas", "description": "Ferramentas e equipamentos"},
+        {"name": "Outros", "description": "Categoria genérica para produtos diversos"},
+    ]
+    
+    for cat_data in default_categories:
+        category = Category(
+            name=cat_data["name"],
+            description=cat_data["description"],
+            organization_id=organization_id
+        )
+        db.add(category)
+    
+    # Note: Categories will be committed with the organization transaction
+
+
+
 def signup_new_organization(
     db: Session,
     organization_name: str,
@@ -72,7 +103,11 @@ def signup_new_organization(
     db.add(organization)
     db.flush()  # Get organization.id
     
-    # 4. Ensure "admin" role exists
+    # 4. Create default categories for the organization
+    create_default_categories(db, organization.id)
+    
+    
+    # 5. Ensure "admin" role exists
     admin_role = db.execute(
         select(Role).where(Role.name == "admin")
     ).scalar_one_or_none()
@@ -82,7 +117,7 @@ def signup_new_organization(
         db.add(admin_role)
         db.flush()
     
-    # 5. Create admin user
+    # 6. Create admin user
     user_data = UserCreate(
         email=user_email,
         password=user_password,
@@ -98,12 +133,12 @@ def signup_new_organization(
         commit=False
     )
     
-    # 6. Commit all changes
+    # 7. Commit all changes
     db.commit()
     db.refresh(user)
     db.refresh(organization)
     
-    # 7. Generate access token
+    # 8. Generate access token
     token_data = {"sub": user.email, "role": user.role.name}
     access_token = create_access_token(data=token_data)
     
