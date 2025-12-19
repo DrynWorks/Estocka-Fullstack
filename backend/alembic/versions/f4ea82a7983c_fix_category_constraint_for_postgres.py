@@ -1,8 +1,8 @@
-"""fix category unique constraint for multi-tenancy
+"""fix category constraint for postgres
 
-Revision ID: 3818a7b1c460
-Revises: 1e51dd76f687
-Create Date: 2025-12-19 13:45:25.871143
+Revision ID: f4ea82a7983c
+Revises: 3818a7b1c460
+Create Date: 2025-12-19 14:08:00
 
 """
 from typing import Sequence, Union
@@ -12,29 +12,29 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '3818a7b1c460'
-down_revision: Union[str, Sequence[str], None] = '1e51dd76f687'
+revision: str = 'f4ea82a7983c'
+down_revision: Union[str, Sequence[str], None] = '3818a7b1c460'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Upgrade schema - Fix category unique constraint for multi-tenancy."""
-    # Drop old global unique constraint/index on name
-    op.drop_index('ix_categories_name', table_name='categories')
+    """Fix category constraint - PostgreSQL specific commands."""
+    # Try to drop old constraint if it exists
+    try:
+        op.drop_index('ix_categories_name', table_name='categories')
+    except Exception:
+        pass  # Index may not exist
     
-    # Recreate index without unique constraint
+    # Create non-unique index
     op.create_index('ix_categories_name', 'categories', ['name'], unique=False)
     
-    # Add new composite unique constraint (name + organization_id)
+    # Add composite unique constraint
     op.create_unique_constraint('uq_category_name_org', 'categories', ['name', 'organization_id'])
 
 
 def downgrade() -> None:
-    """Downgrade schema - Revert to global unique constraint."""
-    # Remove composite unique constraint
+    """Revert changes."""
     op.drop_constraint('uq_category_name_org', 'categories', type_='unique')
-    
-    # Recreate old global unique index
     op.drop_index('ix_categories_name', table_name='categories')
     op.create_index('ix_categories_name', 'categories', ['name'], unique=True)
